@@ -848,26 +848,27 @@ body {
     align-items: center;
 }
 
-/* Modals */
+/* Modal Styles */
 .modal {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(10, 12, 22, 0.8);
+    background-color: rgba(10, 12, 22, 0.85);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 1000;
     opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
+    transition: opacity 0.3s ease;
+    padding: 1rem;
 }
 
 .modal.active {
+    display: flex !important;
     opacity: 1;
     pointer-events: all;
 }
@@ -1016,4 +1017,69 @@ body {
     0%   { background-color: rgba(99, 102, 241, 0.25); }
     100% { background-color: transparent; }
 }
+
+/* Mobile & Tablet Responsive Layout */
+@media (max-width: 900px) {
+    .app-container {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sidebar {
+        padding: 1rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .logo {
+        margin-bottom: 1rem;
+        justify-content: center;
+    }
+
+    .nav-menu {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .nav-item {
+        padding: 0.6rem 0.9rem;
+        font-size: 0.88rem;
+    }
+
+    .sidebar-footer {
+        display: none;
+    }
+
+    .main-content {
+        padding: 1rem;
+    }
+
+    .row {
+        flex-direction: column;
+    }
+
+    .col-4, .col-5, .col-6, .col-7, .col-8 {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 550px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+    .nav-item {
+        font-size: 0.8rem;
+        padding: 0.5rem 0.75rem;
+    }
+}
+
 
