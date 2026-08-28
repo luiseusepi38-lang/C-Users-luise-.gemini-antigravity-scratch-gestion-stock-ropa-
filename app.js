@@ -61,7 +61,7 @@ function updateSyncBadge(status, text) {
     const badge = document.getElementById("cloud-sync-badge");
     const icon = document.getElementById("cloud-sync-icon");
     const label = document.getElementById("cloud-sync-text");
-    if (!badge || !icon || !label) return;
+    if (!badge || !icon || !label || !badge.style) return;
     
     if (status === "connected") {
         badge.style.background = "rgba(16, 185, 129, 0.12)";
@@ -316,13 +316,23 @@ async function initApp() {
         dateEl.innerText = new Date().toLocaleDateString('es-AR', dateOptions);
     }
 
-    // Initial Local Render
-    renderAll();
+    // 1. Setup All Event Listeners immediately
     setupEvents();
 
-    // 2. Connect to Supabase Cloud & Subscribe
-    await loadDataFromSupabase();
-    setupRealtimeSubscription();
+    // 2. Initial Local Render with error protection
+    try {
+        renderAll();
+    } catch (err) {
+        console.error("Local initial render error:", err);
+    }
+
+    // 3. Connect to Supabase Cloud & Subscribe
+    try {
+        await loadDataFromSupabase();
+        setupRealtimeSubscription();
+    } catch (err) {
+        console.error("Supabase load error:", err);
+    }
 }
 
 // Auto-run when DOM is ready
@@ -357,88 +367,100 @@ function renderAll() {
 
 // Render Dashboard Panels
 function renderDashboard() {
-    const totalItems = inventory.reduce((sum, item) => sum + parseInt(item.stock), 0);
-    const totalValue = inventory.reduce((sum, item) => sum + (parseInt(item.stock) * parseFloat(item.price)), 0);
+    const totalItems = inventory.reduce((sum, item) => sum + (parseInt(item.stock) || 0), 0);
+    const totalValue = inventory.reduce((sum, item) => sum + ((parseInt(item.stock) || 0) * (parseFloat(item.price) || 0)), 0);
     
     // Calculate total financial records
-    const totalSalesVal = sales.reduce((sum, sale) => sum + parseFloat(sale.total), 0);
-    const totalPurchasesVal = purchases.reduce((sum, purchase) => sum + parseFloat(purchase.total), 0);
+    const totalSalesVal = sales.reduce((sum, sale) => sum + (parseFloat(sale.total) || 0), 0);
+    const totalPurchasesVal = purchases.reduce((sum, purchase) => sum + (parseFloat(purchase.total) || 0), 0);
     const netBalance = totalSalesVal - totalPurchasesVal;
 
-    document.getElementById("stat-total-items").innerText = totalItems;
-    document.getElementById("stat-total-value").innerText = `$${totalValue.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
-    document.getElementById("stat-total-sales").innerText = `$${totalSalesVal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+    const elItems = document.getElementById("stat-total-items");
+    if (elItems) elItems.innerText = totalItems;
+
+    const elVal = document.getElementById("stat-total-value");
+    if (elVal) elVal.innerText = `$${totalValue.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+    const elSales = document.getElementById("stat-total-sales");
+    if (elSales) elSales.innerText = `$${totalSalesVal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
     
     const balanceEl = document.getElementById("stat-balance");
-    balanceEl.innerText = `$${netBalance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
-    
-    if (netBalance >= 0) {
-        balanceEl.style.color = "var(--color-success)";
-    } else {
-        balanceEl.style.color = "var(--color-danger)";
+    if (balanceEl) {
+        balanceEl.innerText = `$${netBalance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+        if (balanceEl.style) {
+            if (netBalance >= 0) {
+                balanceEl.style.color = "var(--color-success)";
+            } else {
+                balanceEl.style.color = "var(--color-danger)";
+            }
+        }
     }
 
     // Low stock list (items with stock <= 5)
     const lowStockList = document.getElementById("low-stock-list");
-    lowStockList.innerHTML = "";
-    const lowStockItems = inventory.filter(item => item.stock <= 5);
+    if (lowStockList) {
+        lowStockList.innerHTML = "";
+        const lowStockItems = inventory.filter(item => (parseInt(item.stock) || 0) <= 5);
 
-    if (lowStockItems.length === 0) {
-        lowStockList.innerHTML = `
-            <div class="alert-item" style="background-color: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.15)">
-                <div class="alert-item-name"><i class="fa-solid fa-circle-check text-success"></i> ¡Todo al día! No hay artículos con bajo stock.</div>
-            </div>`;
-    } else {
-        lowStockItems.slice(0, 5).forEach(item => {
-            const div = document.createElement("div");
-            div.className = "alert-item";
-            div.innerHTML = `
-                <div>
-                    <div class="alert-item-name">${item.name}</div>
-                    <div class="alert-item-detail">Categoría: ${item.category} • Talle: <span class="badge">${item.size || '-'}</span></div>
-                </div>
-                <div class="alert-stock-badge">Quedan ${item.stock}</div>
-            `;
-            lowStockList.appendChild(div);
-        });
+        if (lowStockItems.length === 0) {
+            lowStockList.innerHTML = `
+                <div class="alert-item" style="background-color: rgba(16, 185, 129, 0.04); border-color: rgba(16, 185, 129, 0.15)">
+                    <div class="alert-item-name"><i class="fa-solid fa-circle-check text-success"></i> ¡Todo al día! No hay artículos con bajo stock.</div>
+                </div>`;
+        } else {
+            lowStockItems.slice(0, 5).forEach(item => {
+                const div = document.createElement("div");
+                div.className = "alert-item";
+                div.innerHTML = `
+                    <div>
+                        <div class="alert-item-name">${item.name || 'Sin nombre'}</div>
+                        <div class="alert-item-detail">Categoría: ${item.category || '-'} • Talle: <span class="badge">${item.size || '-'}</span></div>
+                    </div>
+                    <div class="alert-stock-badge">Quedan ${item.stock || 0}</div>
+                `;
+                lowStockList.appendChild(div);
+            });
+        }
     }
 
     // Category Breakdown Bars
     const categories = ["Varón", "Mujer", "Unisex"];
     const breakdownList = document.getElementById("category-breakdown-list");
-    breakdownList.innerHTML = "";
+    if (breakdownList) {
+        breakdownList.innerHTML = "";
 
-    const categoryTotals = {};
-    categories.forEach(cat => categoryTotals[cat] = 0);
-    inventory.forEach(item => {
-        if (categories.includes(item.category)) {
-            categoryTotals[item.category] += parseInt(item.stock);
-        }
-    });
+        const categoryTotals = {};
+        categories.forEach(cat => categoryTotals[cat] = 0);
+        inventory.forEach(item => {
+            if (categories.includes(item.category)) {
+                categoryTotals[item.category] += (parseInt(item.stock) || 0);
+            }
+        });
 
-    const maxCategoryTotal = Math.max(...Object.values(categoryTotals), 1);
+        const maxCategoryTotal = Math.max(...Object.values(categoryTotals), 1);
 
-    categories.forEach(cat => {
-        const count = categoryTotals[cat];
-        const percent = Math.min((count / maxCategoryTotal) * 100, 100);
-        let colorClass = "var(--accent-purple)";
-        if (cat === "Varón") colorClass = "var(--accent-cyan)";
-        if (cat === "Mujer") colorClass = "var(--color-danger)";
-        if (cat === "Unisex") colorClass = "var(--color-warning, #f59e0b)";
+        categories.forEach(cat => {
+            const count = categoryTotals[cat];
+            const percent = Math.min((count / maxCategoryTotal) * 100, 100);
+            let colorClass = "var(--accent-purple)";
+            if (cat === "Varón") colorClass = "var(--accent-cyan)";
+            if (cat === "Mujer") colorClass = "var(--color-danger)";
+            if (cat === "Unisex") colorClass = "var(--color-warning, #f59e0b)";
 
-        const itemDiv = document.createElement("div");
-        itemDiv.className = "breakdown-item";
-        itemDiv.innerHTML = `
-            <div class="breakdown-info">
-                <span>${cat}</span>
-                <span class="text-muted">${count} u.</span>
-            </div>
-            <div class="breakdown-progress">
-                <div class="breakdown-bar" style="width: ${percent}%; background-color: ${colorClass};"></div>
-            </div>
-        `;
-        breakdownList.appendChild(itemDiv);
-    });
+            const itemDiv = document.createElement("div");
+            itemDiv.className = "breakdown-item";
+            itemDiv.innerHTML = `
+                <div class="breakdown-info">
+                    <span>${cat}</span>
+                    <span class="text-muted">${count} u.</span>
+                </div>
+                <div class="breakdown-progress">
+                    <div class="breakdown-bar" style="width: ${percent}%; background-color: ${colorClass};"></div>
+                </div>
+            `;
+            breakdownList.appendChild(itemDiv);
+        });
+    }
 }
 
 // Render Inventory Table
@@ -507,11 +529,12 @@ function renderPurchasesTable() {
     const sorted = [...indexedPurchases].reverse();
     sorted.forEach(p => {
         const tr = document.createElement("tr");
+        const totalNum = parseFloat(p.total) || 0;
         tr.innerHTML = `
-            <td>${p.date}</td>
-            <td><strong>${p.summary}</strong></td>
-            <td class="text-center">${p.qty} u.</td>
-            <td class="text-right"><strong>$${p.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></td>
+            <td>${p.date || '-'}</td>
+            <td><strong>${p.summary || '-'}</strong></td>
+            <td class="text-center">${p.qty || 0} u.</td>
+            <td class="text-right"><strong>$${totalNum.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></td>
             <td class="text-right">
                 <button class="btn-table-action btn-delete" onclick="deletePurchase(${p.originalIndex})" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
             </td>
@@ -523,6 +546,7 @@ function renderPurchasesTable() {
 // Render Sales History Table
 function renderSalesTable() {
     const tbody = document.getElementById("sales-history-tbody");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     if (sales.length === 0) {
@@ -535,12 +559,14 @@ function renderSalesTable() {
     const sorted = [...indexedSales].reverse();
     sorted.forEach(s => {
         const tr = document.createElement("tr");
+        const priceNum = parseFloat(s.price) || 0;
+        const totalNum = parseFloat(s.total) || 0;
         tr.innerHTML = `
-            <td>${s.date}</td>
-            <td><strong>${s.name}</strong></td>
-            <td class="text-center">${s.qty} u.</td>
-            <td class="text-right">$${s.price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
-            <td class="text-right"><strong>$${s.total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></td>
+            <td>${s.date || '-'}</td>
+            <td><strong>${s.name || '-'}</strong></td>
+            <td class="text-center">${s.qty || 1} u.</td>
+            <td class="text-right">$${priceNum.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+            <td class="text-right"><strong>$${totalNum.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></td>
             <td class="text-right">
                 <button class="btn-table-action btn-delete" onclick="deleteSale(${s.originalIndex})" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
             </td>
@@ -552,6 +578,7 @@ function renderSalesTable() {
 // Render Costos Table
 function renderCostosTable() {
     const tbody = document.getElementById("costos-tbody");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     if (inventory.length === 0) {
@@ -560,7 +587,7 @@ function renderCostosTable() {
     }
 
     // Sort alphabetically by name
-    const sorted = [...inventory].sort((a, b) => a.name.localeCompare(b.name));
+    const sorted = [...inventory].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     sorted.forEach(item => {
         const tr = document.createElement("tr");
@@ -568,13 +595,13 @@ function renderCostosTable() {
         const price = parseFloat(item.price) || 0;
         const margin = price - cost;
         const marginPct = cost > 0 ? (margin / cost) * 100 : 0;
-        const totalCostValue = cost * parseInt(item.stock);
+        const totalCostValue = cost * (parseInt(item.stock) || 0);
 
         tr.innerHTML = `
-            <td><strong>${item.name}</strong></td>
-            <td><span class="cat-pill">${item.category}</span></td>
+            <td><strong>${item.name || '-'}</strong></td>
+            <td><span class="cat-pill">${item.category || '-'}</span></td>
             <td><span class="badge">${item.size || "-"}</span></td>
-            <td class="text-center">${item.stock} u.</td>
+            <td class="text-center">${item.stock || 0} u.</td>
             <td class="text-right"><strong>$${cost.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></td>
             <td class="text-right">$${price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
             <td class="text-right ${margin >= 0 ? 'text-success' : 'text-danger'}"><strong>$${margin.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></td>
@@ -588,12 +615,13 @@ function renderCostosTable() {
 // Populate the Product selector in registering sales
 function populateSaleProductDropdown() {
     const select = document.getElementById("sale-product-select");
+    if (!select) return;
     const selectedVal = select.value;
     
     select.innerHTML = '<option value="">Seleccionar producto...</option>';
     
     // Sort inventory alphabetically by name
-    const sortedInv = [...inventory].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedInv = [...inventory].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     
     sortedInv.forEach(item => {
         if (item.stock > 0) {
