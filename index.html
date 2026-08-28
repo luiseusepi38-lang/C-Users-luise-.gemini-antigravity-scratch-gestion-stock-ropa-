@@ -3077,7 +3077,9 @@ var currentFiadosFilter = "deuda";
 function initCustomers() {
     try {
         const stored = localStorage.getItem("clothing_store_customers");
-        customers = stored ? JSON.parse(stored) : [];
+        let parsed = stored ? JSON.parse(stored) : [];
+        // Actively filter out mock sample customer IDs
+        customers = (Array.isArray(parsed) ? parsed : []).filter(c => c.id !== "cust_1" && c.id !== "cust_2" && c.id !== "cust_3");
     } catch(e) {
         customers = [];
     }
@@ -3085,7 +3087,9 @@ function initCustomers() {
 
     try {
         const storedTx = localStorage.getItem("clothing_store_customer_transactions");
-        customerTransactions = storedTx ? JSON.parse(storedTx) : [];
+        let parsedTx = storedTx ? JSON.parse(storedTx) : [];
+        // Actively filter out mock sample transaction IDs
+        customerTransactions = (Array.isArray(parsedTx) ? parsedTx : []).filter(t => !["tx_1","tx_2","tx_3","tx_4","tx_5","tx_6","tx_7"].includes(t.id));
     } catch(e) {
         customerTransactions = [];
     }
