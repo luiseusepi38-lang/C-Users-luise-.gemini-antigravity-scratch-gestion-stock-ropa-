@@ -799,10 +799,71 @@ function setupEvents() {
             showToast("Se ha vaciado todo el inventario", "danger");
         }
     });
+
+    // AI Scan & Key Modal Listeners
+    const aiKeyModal = document.getElementById("ai-key-modal");
+    const inputGeminiKey = document.getElementById("input-gemini-api-key");
+
+    document.getElementById("btn-config-ai-key")?.addEventListener("click", () => {
+        openAiKeyModal();
+    });
+
+    document.getElementById("ai-key-modal-close")?.addEventListener("click", () => {
+        aiKeyModal.classList.remove("active");
+    });
+
+    document.getElementById("btn-ai-key-cancel")?.addEventListener("click", () => {
+        aiKeyModal.classList.remove("active");
+    });
+
+    document.getElementById("btn-ai-key-save")?.addEventListener("click", () => {
+        const keyVal = inputGeminiKey.value.trim();
+        if (keyVal) {
+            localStorage.setItem("stockmaster_gemini_api_key", keyVal);
+            showToast("Clave de Gemini guardada correctamente", "success");
+            aiKeyModal.classList.remove("active");
+        } else {
+            showToast("Por favor ingresa una clave válida", "warning");
+        }
+    });
+
+    const aiFileInput = document.getElementById("ai-file-input");
+    document.getElementById("btn-trigger-ai-scan")?.addEventListener("click", () => {
+        const apiKey = localStorage.getItem("stockmaster_gemini_api_key");
+        if (!apiKey) {
+            openAiKeyModal();
+            showToast("Primero ingresa tu API Key de Gemini", "info");
+        } else {
+            aiFileInput.click();
+        }
+    });
+
+    aiFileInput?.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+            handleAIFileSelected(e.target.files[0]);
+        }
+    });
 }
 
-// File drag upload scanner animation trigger
-function handleUploadedFile(file) {
+function openAiKeyModal() {
+    const modal = document.getElementById("ai-key-modal");
+    const input = document.getElementById("input-gemini-api-key");
+    if (modal && input) {
+        input.value = localStorage.getItem("stockmaster_gemini_api_key") || "";
+        modal.classList.add("active");
+    }
+}
+
+// AI Photo Scanner using user's Gemini API Key
+async function handleAIFileSelected(file) {
+    if (!file) return;
+    const apiKey = localStorage.getItem("stockmaster_gemini_api_key");
+    if (!apiKey) {
+        openAiKeyModal();
+        showToast("Por favor ingresa tu API Key de Gemini para escanear", "info");
+        return;
+    }
+
     const dropzoneContentNormal = document.getElementById("dropzone-content-normal");
     const dropzonePreview = document.getElementById("dropzone-preview");
     const previewImg = document.getElementById("preview-img");
@@ -813,34 +874,87 @@ function handleUploadedFile(file) {
     dropzonePreview.classList.remove("hidden");
     laserLine.classList.remove("hidden");
 
-    if (file.type === "application/pdf") {
-        previewImg.src = "";
-        scannerStatusText.innerText = "Analizando PDF del remito...";
-        parsePDF(file);
-    } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewImg.src = e.target.result;
-            scannerStatusText.innerText = "Escaneando remito por IA...";
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        previewImg.src = e.target.result;
+        scannerStatusText.innerText = "Analizando foto del remito con Gemini IA...";
 
-            setTimeout(() => {
-                laserLine.classList.add("hidden");
-                scannerStatusText.innerText = "¡Lectura finalizada con éxito!";
-                showToast("Lectura del remito completada por IA", "success");
-                
-                const resultsPanel = document.getElementById("results-panel");
-                const emptyResultsState = document.getElementById("empty-results-state");
-                const resultsContent = document.getElementById("results-content");
+        try {
+            const base64Data = e.target.result.split(',')[1];
+            const mimeType = file.type || "image/jpeg";
 
-                resultsPanel.classList.remove("locked");
-                emptyResultsState.classList.add("hidden");
-                resultsContent.classList.remove("hidden");
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
 
-                renderParsedResults(MOCK_SCANNED_ITEMS);
-            }, 2800);
-        };
-        reader.readAsDataURL(file);
-    }
+            const promptText = `Eres un asistente experto en contabilidad y control de stock textil.
+Analiza detenidamente esta foto de remito o factura de ropa y extrae todos los artículos en una lista JSON estructurada.
+Para cada artículo detectado, extrae:
+- "name": Nombre descriptivo de la prenda (ej: "PANTALON BORJA FRISA", "REMERA FIDEL"). Limpia números de orden o códigos iniciales.
+- "category": Clasifica como "Varón", "Mujer" o "Unisex".
+- "size": Talle si está especificado en el remito (ej: "12", "4", "M"), o string vacío "" si no figura.
+- "quantity": Cantidad de unidades (entero positivo >= 1).
+- "price": Costo unitario numérico (sin signo $, solo el número decimal con punto, ej: 16610.50).
+
+Devuelve ÚNICAMENTE un array JSON válido con los objetos, sin texto explicativo.`;
+
+            const payload = {
+                contents: [
+                    {
+                        parts: [
+                            { text: promptText },
+                            {
+                                inline_data: {
+                                    mime_type: mimeType,
+                                    data: base64Data
+                                }
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    response_mime_type: "application/json"
+                }
+            };
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                const errMsg = errData.error?.message || `Error ${response.status}`;
+                throw new Error(errMsg);
+            }
+
+            const data = await response.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+            const items = JSON.parse(rawText);
+
+            laserLine.classList.add("hidden");
+            scannerStatusText.innerText = "¡Lectura finalizada con Gemini IA!";
+            showToast(`Se detectaron ${items.length} productos con IA`, "success");
+
+            const resultsPanel = document.getElementById("results-panel");
+            const emptyResultsState = document.getElementById("empty-results-state");
+            const resultsContent = document.getElementById("results-content");
+
+            resultsPanel.classList.remove("locked");
+            emptyResultsState.classList.add("hidden");
+            resultsContent.classList.remove("hidden");
+
+            renderParsedResults(items);
+        } catch (error) {
+            console.error("Error Gemini OCR:", error);
+            laserLine.classList.add("hidden");
+            scannerStatusText.innerText = "Error en lectura IA";
+            showToast(`Error al procesar con IA: ${error.message}`, "danger");
+            if (error.message.toLowerCase().includes("api key") || error.message.toLowerCase().includes("invalid")) {
+                openAiKeyModal();
+            }
+        }
+    };
+    reader.readAsDataURL(file);
 }
 
 // Real PDF Text Parser using PDF.js
@@ -1438,11 +1552,6 @@ function saveProductForm() {
         upsertInventoryCloud(newItem);
         showToast("Producto agregado al stock", "success");
     }
-
-    saveInventory();
-    renderAll();
-    closeModal();
-}
 
     saveInventory();
     renderAll();
