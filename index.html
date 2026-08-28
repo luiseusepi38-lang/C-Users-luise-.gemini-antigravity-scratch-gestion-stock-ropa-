@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- PDF.js library for client-side PDF parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- Supabase JS Client for Cloud Realtime Sync -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // Set workerSrc for PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
@@ -61,6 +63,10 @@
                     <p class="current-date" id="header-date">Viernes, 24 de Julio</p>
                 </div>
                 <div class="header-actions">
+                    <div id="cloud-sync-badge" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.85rem; border-radius: 8px; font-size: 0.82rem; font-weight: 500; background: rgba(16, 185, 129, 0.12); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.25);">
+                        <i class="fa-solid fa-cloud" id="cloud-sync-icon"></i>
+                        <span id="cloud-sync-text">Supabase Conectado</span>
+                    </div>
                     <button class="btn btn-secondary" id="btn-quick-add">
                         <i class="fa-solid fa-plus"></i> Carga Rápida
                     </button>

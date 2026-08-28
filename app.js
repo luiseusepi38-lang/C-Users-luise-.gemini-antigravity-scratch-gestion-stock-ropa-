@@ -1,12 +1,25 @@
-// --- StockMaster: Application Core Logic ---
+// --- StockMaster: Application Core Logic with Supabase Cloud Sync ---
+
+const SUPABASE_URL = "https://qeqvfhgcwzkpqcbbywxd.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ekw7nnSANeRjYazKkFLRlQ_lYZiMCOu";
+let supabase = null;
+let isCloudConnected = false;
+
+if (window.supabase) {
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+        console.warn("Supabase init error:", e);
+    }
+}
 
 // Default Initial Mock Data (Simplified to Varón / Mujer and without color)
 const DEFAULT_INVENTORY = [
-    { id: "1", name: "PANTALON BORJA OV CC - FRISA (boy)", category: "Varón", size: "12", stock: 12, price: 26500 },
-    { id: "2", name: "BUZO BASTIAN OV CC - FRISA (boy)", category: "Varón", size: "10", stock: 8, price: 29500 },
-    { id: "3", name: "REMERA FIDEL HOLGADA CC (girl)", category: "Mujer", size: "12", stock: 15, price: 23000 },
-    { id: "4", name: "CALZA MARTITA CCA (girl)", category: "Mujer", size: "10", stock: 10, price: 17800 },
-    { id: "5", name: "CONJUNTO OSO PURO - PLUSH (boy)", category: "Varón", size: "9-12m", stock: 4, price: 28000 }
+    { id: "1", name: "PANTALON BORJA OV CC - FRISA (boy)", category: "Varón", size: "12", stock: 12, price: 26500, cost: 16562 },
+    { id: "2", name: "BUZO BASTIAN OV CC - FRISA (boy)", category: "Varón", size: "10", stock: 8, price: 29500, cost: 18437 },
+    { id: "3", name: "REMERA FIDEL HOLGADA CC (girl)", category: "Mujer", size: "12", stock: 15, price: 23000, cost: 14375 },
+    { id: "4", name: "CALZA MARTITA CCA (girl)", category: "Mujer", size: "10", stock: 10, price: 17800, cost: 11125 },
+    { id: "5", name: "CONJUNTO OSO PURO - PLUSH (boy)", category: "Varón", size: "9-12m", stock: 4, price: 28000, cost: 17500 }
 ];
 
 // Mock Remito scanned items (Simplified to Varón / Mujer and without color)
@@ -43,17 +56,219 @@ let sales = [];
 let currentCategoryFilter = "todos";
 let currentSearchQuery = "";
 
+// Sync Status Badge Indicator
+function updateSyncBadge(status, text) {
+    const badge = document.getElementById("cloud-sync-badge");
+    const icon = document.getElementById("cloud-sync-icon");
+    const label = document.getElementById("cloud-sync-text");
+    if (!badge || !icon || !label) return;
+    
+    if (status === "connected") {
+        badge.style.background = "rgba(16, 185, 129, 0.12)";
+        badge.style.color = "var(--color-success)";
+        badge.style.borderColor = "rgba(16, 185, 129, 0.25)";
+        icon.className = "fa-solid fa-cloud";
+        label.innerText = text || "Supabase Conectado";
+    } else if (status === "syncing") {
+        badge.style.background = "rgba(59, 130, 246, 0.12)";
+        badge.style.color = "var(--color-info)";
+        badge.style.borderColor = "rgba(59, 130, 246, 0.25)";
+        icon.className = "fa-solid fa-arrows-rotate fa-spin";
+        label.innerText = text || "Sincronizando...";
+    } else {
+        badge.style.background = "rgba(245, 158, 11, 0.12)";
+        badge.style.color = "var(--color-warning)";
+        badge.style.borderColor = "rgba(245, 158, 11, 0.25)";
+        icon.className = "fa-solid fa-cloud-arrow-down";
+        label.innerText = text || "Modo Local (Offline)";
+    }
+}
+
+// Cloud Data Loader
+async function loadDataFromSupabase() {
+    if (!supabase) {
+        updateSyncBadge("offline", "Modo Local");
+        return false;
+    }
+    
+    updateSyncBadge("syncing", "Conectando a Supabase...");
+    try {
+        const [invRes, purRes, salRes] = await Promise.all([
+            supabase.from('inventory').select('*').order('created_at', { ascending: true }),
+            supabase.from('purchases').select('*').order('created_at', { ascending: false }),
+            supabase.from('sales').select('*').order('created_at', { ascending: false })
+        ]);
+
+        if (invRes.error || purRes.error || salRes.error) {
+            console.warn("Tablas de Supabase no disponibles aún:", invRes.error || purRes.error || salRes.error);
+            updateSyncBadge("offline", "Tablas pendientes en Supabase");
+            return false;
+        }
+
+        isCloudConnected = true;
+        updateSyncBadge("connected", "Supabase Conectado");
+
+        // Inventory
+        if (invRes.data && invRes.data.length > 0) {
+            inventory = invRes.data.map(item => ({
+                id: item.id ? item.id.toString() : Date.now().toString(),
+                name: item.name,
+                category: item.category || "Varón",
+                size: item.size || "-",
+                stock: parseInt(item.stock) || 0,
+                price: parseFloat(item.price) || 0,
+                cost: parseFloat(item.cost) || 0
+            }));
+            localStorage.setItem("clothing_store_inventory", JSON.stringify(inventory));
+        } else if (inventory.length > 0) {
+            // First time migration: upload local items to cloud
+            for (const item of inventory) {
+                await upsertInventoryCloud(item);
+            }
+        }
+
+        // Purchases
+        if (purRes.data && purRes.data.length > 0) {
+            purchases = purRes.data.map(p => ({
+                id: p.id,
+                date: p.date,
+                summary: p.summary,
+                qty: parseInt(p.qty) || 0,
+                total: parseFloat(p.total) || 0
+            }));
+            localStorage.setItem("clothing_store_purchases", JSON.stringify(purchases));
+        }
+
+        // Sales
+        if (salRes.data && salRes.data.length > 0) {
+            sales = salRes.data.map(s => ({
+                id: s.id,
+                date: s.date,
+                name: s.name,
+                qty: parseInt(s.qty) || 0,
+                price: parseFloat(s.price) || 0,
+                total: parseFloat(s.total) || 0
+            }));
+            localStorage.setItem("clothing_store_sales", JSON.stringify(sales));
+        }
+
+        renderAll();
+        return true;
+    } catch (err) {
+        console.error("Error al conectar con Supabase:", err);
+        updateSyncBadge("offline", "Error de conexión");
+        return false;
+    }
+}
+
+// Realtime sync across all devices
+function setupRealtimeSubscription() {
+    if (!supabase) return;
+    try {
+        supabase.channel('stockmaster-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
+                loadDataFromSupabase();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, () => {
+                loadDataFromSupabase();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+                loadDataFromSupabase();
+            })
+            .subscribe();
+    } catch(e) {
+        console.warn("Realtime subscription notice:", e);
+    }
+}
+
+// Cloud Helpers
+async function upsertInventoryCloud(item) {
+    if (!supabase || !isCloudConnected) return;
+    try {
+        await supabase.from('inventory').upsert({
+            id: item.id.toString(),
+            name: item.name,
+            category: item.category,
+            size: item.size || "-",
+            stock: parseInt(item.stock) || 0,
+            price: parseFloat(item.price) || 0,
+            cost: parseFloat(item.cost) || 0
+        });
+    } catch (e) { console.error("Cloud inventory upsert error:", e); }
+}
+
+async function deleteInventoryCloud(id) {
+    if (!supabase || !isCloudConnected) return;
+    try {
+        await supabase.from('inventory').delete().eq('id', id.toString());
+    } catch (e) { console.error("Cloud inventory delete error:", e); }
+}
+
+async function clearInventoryCloud() {
+    if (!supabase || !isCloudConnected) return;
+    try {
+        await supabase.from('inventory').delete().neq('id', 'non_existing_xyz');
+    } catch (e) { console.error("Cloud inventory clear error:", e); }
+}
+
+async function insertPurchaseCloud(purchaseObj) {
+    if (!supabase || !isCloudConnected) return;
+    try {
+        const { data, error } = await supabase.from('purchases').insert({
+            date: purchaseObj.date,
+            summary: purchaseObj.summary,
+            qty: purchaseObj.qty,
+            total: purchaseObj.total
+        }).select();
+        if (data && data[0]) purchaseObj.id = data[0].id;
+    } catch (e) { console.error("Cloud purchase insert error:", e); }
+}
+
+async function deletePurchaseCloud(purchaseObj) {
+    if (!supabase || !isCloudConnected) return;
+    try {
+        if (purchaseObj.id) {
+            await supabase.from('purchases').delete().eq('id', purchaseObj.id);
+        } else {
+            await supabase.from('purchases').delete().eq('date', purchaseObj.date).eq('summary', purchaseObj.summary);
+        }
+    } catch (e) { console.error("Cloud purchase delete error:", e); }
+}
+
+async function insertSaleCloud(saleObj) {
+    if (!supabase || !isCloudConnected) return;
+    try {
+        const { data, error } = await supabase.from('sales').insert({
+            date: saleObj.date,
+            name: saleObj.name,
+            qty: saleObj.qty,
+            price: saleObj.price,
+            total: saleObj.total
+        }).select();
+        if (data && data[0]) saleObj.id = data[0].id;
+    } catch (e) { console.error("Cloud sale insert error:", e); }
+}
+
+async function deleteSaleCloud(saleObj) {
+    if (!supabase || !isCloudConnected) return;
+    try {
+        if (saleObj.id) {
+            await supabase.from('sales').delete().eq('id', saleObj.id);
+        } else {
+            await supabase.from('sales').delete().eq('date', saleObj.date).eq('name', saleObj.name);
+        }
+    } catch (e) { console.error("Cloud sale delete error:", e); }
+}
+
 // Initialize application
-document.addEventListener("DOMContentLoaded", () => {
-    // Load from LocalStorage
+document.addEventListener("DOMContentLoaded", async () => {
+    // 1. Initial Load from LocalStorage (Instant UI)
     const storedInventory = localStorage.getItem("clothing_store_inventory");
     if (storedInventory) {
         inventory = JSON.parse(storedInventory);
-        // Migración automática de categorías anteriores
         let migrated = false;
         inventory.forEach(item => {
             if (item.category !== "Varón" && item.category !== "Mujer") {
-                // Classify existing items into Varon or Mujer
                 const lower = (item.name || "").toLowerCase();
                 if (lower.includes("girl") || lower.includes("nena") || lower.includes("mujer") || item.category.includes("Mujer")) {
                     item.category = "Mujer";
@@ -73,7 +288,6 @@ document.addEventListener("DOMContentLoaded", () => {
         saveInventory();
     }
 
-    // Load Purchases
     const storedPurchases = localStorage.getItem("clothing_store_purchases");
     if (storedPurchases) {
         purchases = JSON.parse(storedPurchases);
@@ -82,7 +296,6 @@ document.addEventListener("DOMContentLoaded", () => {
         savePurchases();
     }
 
-    // Load Sales
     const storedSales = localStorage.getItem("clothing_store_sales");
     if (storedSales) {
         sales = JSON.parse(storedSales);
@@ -95,9 +308,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const dateOptions = { weekday: 'long', day: 'numeric', month: 'long' };
     document.getElementById("header-date").innerText = new Date().toLocaleDateString('es-AR', dateOptions);
 
-    // Initial Render
+    // Initial Local Render
     renderAll();
     setupEvents();
+
+    // 2. Connect to Supabase Cloud & Subscribe
+    await loadDataFromSupabase();
+    setupRealtimeSubscription();
 });
 
 // Save functions
@@ -385,6 +602,7 @@ window.adjustStock = function(id, amount) {
         if (newStock >= 0) {
             item.stock = newStock;
             saveInventory();
+            upsertInventoryCloud(item);
             renderAll();
             showToast(`Stock de "${item.name}" actualizado a ${newStock} u.`, "success");
         }
@@ -417,6 +635,7 @@ window.deleteItem = function(id) {
 
         inventory = inventory.filter(i => i.id !== id);
         saveInventory();
+        deleteInventoryCloud(id);
         renderAll();
         showToast("Producto eliminado del stock", "warning");
     }
@@ -425,6 +644,8 @@ window.deleteItem = function(id) {
 // Delete purchase transaction
 window.deletePurchase = function(idx) {
     if (confirm("¿Estás seguro de que deseas eliminar este registro de compra del historial? Se ajustará el balance general.")) {
+        const p = purchases[idx];
+        if (p) deletePurchaseCloud(p);
         purchases.splice(idx, 1);
         savePurchases();
         renderAll();
@@ -435,6 +656,8 @@ window.deletePurchase = function(idx) {
 // Delete sale transaction
 window.deleteSale = function(idx) {
     if (confirm("¿Estás seguro de que deseas de registrar y eliminar esta venta del historial? Se devolverá al stock si lo deseas (se puede hacer manual).")) {
+        const s = sales[idx];
+        if (s) deleteSaleCloud(s);
         sales.splice(idx, 1);
         saveSales();
         renderAll();
@@ -571,6 +794,7 @@ function setupEvents() {
         if (confirm("¿Estás completamente seguro de que deseas borrar TODO el inventario del stock? Esta acción no se puede deshacer.")) {
             inventory = [];
             saveInventory();
+            clearInventoryCloud();
             renderAll();
             showToast("Se ha vaciado todo el inventario", "danger");
         }
@@ -1052,8 +1276,9 @@ function confirmImportResults() {
             existing.stock = parseInt(existing.stock) + quantity;
             existing.price = sellPrice;
             existing.cost = cost;
+            upsertInventoryCloud(existing);
         } else {
-            inventory.push({
+            const newItem = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
                 name,
                 category,
@@ -1061,7 +1286,9 @@ function confirmImportResults() {
                 stock: quantity,
                 price: sellPrice,
                 cost: cost
-            });
+            };
+            inventory.push(newItem);
+            upsertInventoryCloud(newItem);
         }
         addedCount += quantity;
         purchaseTotalCost += (cost * quantity);
@@ -1076,6 +1303,7 @@ function confirmImportResults() {
         total: purchaseTotalCost
     };
     purchases.push(purchaseObj);
+    insertPurchaseCloud(purchaseObj);
 
     saveInventory();
     savePurchases();
@@ -1113,6 +1341,7 @@ function registerSale() {
 
     // Discount stock
     item.stock = parseInt(item.stock) - qty;
+    upsertInventoryCloud(item);
 
     // Record Sale
     const saleObj = {
@@ -1123,6 +1352,7 @@ function registerSale() {
         total: qty * salePrice
     };
     sales.push(saleObj);
+    insertSaleCloud(saleObj);
 
     saveInventory();
     saveSales();
@@ -1190,11 +1420,12 @@ function saveProductForm() {
             item.stock = stock;
             item.price = price;
             item.cost = cost;
+            upsertInventoryCloud(item);
             showToast("Producto actualizado", "success");
         }
     } else {
         // Add new
-        inventory.push({
+        const newItem = {
             id: Date.now().toString(),
             name,
             category,
@@ -1202,9 +1433,16 @@ function saveProductForm() {
             stock,
             price,
             cost
-        });
+        };
+        inventory.push(newItem);
+        upsertInventoryCloud(newItem);
         showToast("Producto agregado al stock", "success");
     }
+
+    saveInventory();
+    renderAll();
+    closeModal();
+}
 
     saveInventory();
     renderAll();
