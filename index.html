@@ -154,12 +154,20 @@
                             <span class="card-value" id="stat-total-sales">$0.00</span>
                         </div>
                     </div>
-                    <!-- Metrics Card 4 -->
+                    <!-- Metrics Card 4: Caja / Ganancia Real de Ventas -->
                     <div class="metric-card card-gradient-1" style="border-color: rgba(16, 185, 129, 0.3);">
                         <div class="card-icon" style="background-color: rgba(16, 185, 129, 0.15); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-scale-balanced"></i></div>
                         <div class="card-info">
-                            <span class="card-label">Caja / Balance</span>
+                            <span class="card-label">Caja / Balance (Ventas vs Costo)</span>
                             <span class="card-value" id="stat-balance">$0.00</span>
+                        </div>
+                    </div>
+                    <!-- Metrics Card 5: Balance Histórico (Compras vs Ventas) -->
+                    <div class="metric-card card-gradient-2" style="border-color: rgba(139, 92, 246, 0.3);">
+                        <div class="card-icon" style="background-color: rgba(139, 92, 246, 0.15); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.3);"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Balance Histórico (Flujo Global)</span>
+                            <span class="card-value" id="stat-historical-balance">$0.00</span>
                         </div>
                     </div>
                 </div>
@@ -1407,10 +1415,39 @@ function renderDashboard() {
     const totalItems = inventory.reduce((sum, item) => sum + (parseInt(item.stock) || 0), 0);
     const totalValue = inventory.reduce((sum, item) => sum + ((parseInt(item.stock) || 0) * (parseFloat(item.price) || 0)), 0);
     
-    // Calculate total financial records
-    const totalSalesVal = sales.reduce((sum, sale) => sum + (parseFloat(sale.total) || 0), 0);
+    // 1. Calculate specific sales profit (Ventas Totales - Costo específico de lo vendido)
+    let totalSalesVal = 0;
+    let totalSalesCost = 0;
+
+    sales.forEach(sale => {
+        const saleRev = parseFloat(sale.total) || 0;
+        const qty = parseInt(sale.qty) || 1;
+        
+        let unitCost = parseFloat(sale.cost);
+        if (isNaN(unitCost) || unitCost <= 0) {
+            // Find matched item in inventory to get exact cost
+            const normSale = typeof normalizeConceptName === "function" ? normalizeConceptName(sale.name || '') : (sale.name || '').toUpperCase();
+            const matchedItem = inventory.find(i => {
+                const normInv = typeof normalizeConceptName === "function" ? normalizeConceptName(i.name || '') : (i.name || '').toUpperCase();
+                return normSale.includes(normInv) || normInv.includes(normSale);
+            });
+
+            if (matchedItem && matchedItem.cost) {
+                unitCost = parseFloat(matchedItem.cost);
+            } else {
+                unitCost = (parseFloat(sale.price) || 0) / 1.6;
+            }
+        }
+
+        totalSalesVal += saleRev;
+        totalSalesCost += (unitCost * qty);
+    });
+
+    const netSalesProfit = totalSalesVal - totalSalesCost;
+
+    // 2. Calculate historical balance (Total Ventas - Total Compras)
     const totalPurchasesVal = purchases.reduce((sum, purchase) => sum + (parseFloat(purchase.total) || 0), 0);
-    const netBalance = totalSalesVal - totalPurchasesVal;
+    const historicalBalance = totalSalesVal - totalPurchasesVal;
 
     const elItems = document.getElementById("stat-total-items");
     if (elItems) elItems.innerText = totalItems;
@@ -1421,15 +1458,21 @@ function renderDashboard() {
     const elSales = document.getElementById("stat-total-sales");
     if (elSales) elSales.innerText = `$${totalSalesVal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
     
+    // Card 4: Caja / Balance (Ventas vs Costo específico de lo vendido)
     const balanceEl = document.getElementById("stat-balance");
     if (balanceEl) {
-        balanceEl.innerText = `$${netBalance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+        balanceEl.innerText = `$${netSalesProfit.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
         if (balanceEl.style) {
-            if (netBalance >= 0) {
-                balanceEl.style.color = "var(--color-success)";
-            } else {
-                balanceEl.style.color = "var(--color-danger)";
-            }
+            balanceEl.style.color = netSalesProfit >= 0 ? "var(--color-success)" : "var(--color-danger)";
+        }
+    }
+
+    // Card 5: Balance Histórico (Flujo Global Compras vs Ventas)
+    const histBalanceEl = document.getElementById("stat-historical-balance");
+    if (histBalanceEl) {
+        histBalanceEl.innerText = `$${historicalBalance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+        if (histBalanceEl.style) {
+            histBalanceEl.style.color = historicalBalance >= 0 ? "var(--color-success)" : "var(--color-danger)";
         }
     }
 
@@ -3010,11 +3053,13 @@ function registerSale() {
     item.stock = parseInt(item.stock) - qty;
     upsertInventoryCloud(item);
 
-    // Record Sale
+    // Record Sale with unit cost
+    const unitCost = parseFloat(item.cost) || (parseFloat(item.price) / 1.6);
     const saleObj = {
         date: getFormattedDate(),
         name: `${item.name} - Talle ${item.size || '-'}`,
         qty: qty,
+        cost: unitCost,
         price: salePrice,
         total: qty * salePrice
     };
