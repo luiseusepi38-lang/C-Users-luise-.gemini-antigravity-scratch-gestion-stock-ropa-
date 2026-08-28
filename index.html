@@ -1885,6 +1885,16 @@ function openAiKeyModal() {
     }
 }
 
+// Router for dropped or selected files (PDF or Images)
+function handleUploadedFile(file) {
+    if (!file) return;
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+        parsePDF(file);
+    } else {
+        handleAIFileSelected(file);
+    }
+}
+
 // AI Photo Scanner using user's Gemini API Key
 async function handleAIFileSelected(file) {
     if (!file) return;
