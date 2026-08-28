@@ -262,6 +262,27 @@
                     </div>
                 </div>
 
+                <!-- Persistent Batch Resume Banner (Hidden by default, shown if a batch session exists) -->
+                <div id="batch-resume-banner" class="batch-resume-banner hidden">
+                    <div style="display: flex; align-items: center; gap: 0.85rem;">
+                        <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(139, 92, 246, 0.2); color: var(--accent-purple); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.95rem; color: #fff;" id="resume-banner-title">📌 Remito pendiente en pausa</div>
+                            <div style="font-size: 0.82rem; color: var(--text-muted);" id="resume-banner-subtitle">Progreso: Lote 1 de 4 procesado</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-primary" onclick="resumeBatchSession()" style="font-size: 0.85rem; padding: 0.45rem 0.9rem;">
+                            <i class="fa-solid fa-play"></i> Continuar Lote Pendiente
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelBatchSession()" style="font-size: 0.85rem; padding: 0.45rem 0.75rem;" title="Descartar el resto del remito">
+                            <i class="fa-solid fa-trash-can"></i> Descartar
+                        </button>
+                    </div>
+                </div>
+
                 <div class="scan-workspace">
                     <div class="row">
                         <!-- Dropzone Area -->
@@ -302,6 +323,15 @@
                                 </div>
 
                                 <div class="results-content hidden" id="results-content">
+                                    <!-- Batch Progress Container -->
+                                    <div id="batch-progress-container" class="hidden" style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 12px; padding: 0.75rem 1rem; margin-bottom: 1rem;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                            <span style="font-size: 0.85rem; font-weight: 700; color: #fff;" id="batch-progress-title">Procesando Lote 1 de 3</span>
+                                            <span style="font-size: 0.78rem; color: var(--accent-purple);" id="batch-progress-subtitle">Páginas 1, 2, 3</span>
+                                        </div>
+                                        <div class="batch-step-bar" id="batch-step-bar"></div>
+                                    </div>
+
                                     <div class="results-table-container">
                                         <table class="results-table">
                                             <thead>
@@ -772,6 +802,116 @@
                     <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Cargar a la Cuenta</button>
                 </div>
             </form>
+        </div>
+    <!-- Modal 4: Configuración de Escaneo por Lotes (PDF Extenso) -->
+    <div class="modal" id="pdf-batch-config-modal">
+        <div class="modal-content" style="max-width: 580px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-copy text-purple"></i> Configuración de Escaneo por Lotes</h3>
+                <button class="btn-close" onclick="closeModal('pdf-batch-config-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); padding: 0.85rem 1.1rem; border-radius: 12px; margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-weight: 700; color: #fff; font-size: 0.95rem;" id="batch-modal-filename">Remito.pdf</div>
+                    <span class="badge badge-purple" id="batch-modal-pagecount">0 páginas</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    Este documento es extenso. Puedes elegir qué páginas analizar y procesarlo en lotes manejables sin saturar la IA.
+                </div>
+            </div>
+
+            <!-- Range Selection Options -->
+            <div style="margin-bottom: 1.25rem;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">
+                    🎯 ¿Qué páginas deseas analizar?
+                </label>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <!-- Option 1: All Pages -->
+                    <label class="batch-option-card selected" id="opt-card-all">
+                        <input type="radio" name="batch-range-mode" value="all" checked onchange="handleRangeModeChange('all')">
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.88rem; color: #fff;">Todas las páginas</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);" id="opt-desc-all">Desde la pág. 1 hasta la última</div>
+                        </div>
+                    </label>
+
+                    <!-- Option 2: Continuous Range (From X to Y) -->
+                    <label class="batch-option-card" id="opt-card-range">
+                        <input type="radio" name="batch-range-mode" value="range" onchange="handleRangeModeChange('range')">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 0.88rem; color: #fff;">Rango continuo</div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.35rem;">
+                                <span style="font-size: 0.78rem; color: var(--text-muted);">Desde pág:</span>
+                                <input type="number" id="batch-range-from" min="1" value="1" style="width: 65px; padding: 0.25rem 0.5rem; font-size: 0.82rem;" oninput="updateBatchConfigSummary()">
+                                <span style="font-size: 0.78rem; color: var(--text-muted);">hasta:</span>
+                                <input type="number" id="batch-range-to" min="1" value="1" style="width: 65px; padding: 0.25rem 0.5rem; font-size: 0.82rem;" oninput="updateBatchConfigSummary()">
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Option 3: Custom Pattern (e.g. 1-5, 8, 11-18) -->
+                    <label class="batch-option-card" id="opt-card-custom">
+                        <input type="radio" name="batch-range-mode" value="custom" onchange="handleRangeModeChange('custom')">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 0.88rem; color: #fff;">Páginas personalizadas</div>
+                            <input type="text" id="batch-range-custom" placeholder="Ej: 1-5, 8, 10-18 (omitir portadas)" style="width: 100%; margin-top: 0.35rem; padding: 0.35rem 0.6rem; font-size: 0.82rem;" oninput="updateBatchConfigSummary()">
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Batch Size Selection -->
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label for="batch-size-select">📦 Tamaño de los lotes</label>
+                <select id="batch-size-select" onchange="updateBatchConfigSummary()" style="font-weight: 600;">
+                    <option value="3" selected>3 páginas por lote (Recomendado - Rápido y equilibrado)</option>
+                    <option value="2">2 páginas por lote (Ideal para remitos muy densos)</option>
+                    <option value="1">1 página por lote (Máximo detalle)</option>
+                </select>
+            </div>
+
+            <!-- Live Calculation Summary -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #fff;" id="batch-summary-text">
+                    ⚡ Se procesarán 0 páginas seleccionadas en 0 lotes ordenados
+                </div>
+                <div style="font-size: 0.75rem; color: var(--color-success); margin-top: 0.2rem;">
+                    ✓ Permite pausar, guardar avances y reanudar en cualquier momento sin perder datos.
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('pdf-batch-config-modal')">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmBatchConfigAndStart()"><i class="fa-solid fa-play"></i> Iniciar Lote 1 ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Advertencia de Remito Duplicado -->
+    <div class="modal" id="duplicate-remito-modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-triangle-exclamation text-danger"></i> ¡Posible Remito Duplicado!</h3>
+                <button class="btn-close" onclick="closeModal('duplicate-remito-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="padding: 1rem 0;">
+                <p style="font-size: 0.9rem; color: var(--text-main); margin-bottom: 1rem;">
+                    Este remito ya fue ingresado con anterioridad en el sistema:
+                </p>
+                <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-danger);" id="dup-modal-filename">-</div>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem;" id="dup-modal-details">-</div>
+                </div>
+                <p style="font-size: 0.82rem; color: var(--text-muted);">
+                    Si lo vuelves a cargar, se sumará nuevamente la mercadería al inventario y se registrará un gasto duplicado en compras.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('duplicate-remito-modal')"><i class="fa-solid fa-xmark"></i> Cancelar (No Duplicar)</button>
+                <button type="button" class="btn btn-primary" id="btn-duplicate-force-continue" style="background: var(--color-danger); border-color: var(--color-danger);">Cargar de todos modos</button>
+            </div>
         </div>
     </div>
 
@@ -1259,6 +1399,7 @@ function renderAll() {
     populateSaleProductDropdown();
     renderCostosTable();
     renderFiadosAll();
+    updateBatchResumeBanner();
 }
 
 // Render Dashboard Panels
@@ -1885,13 +2026,445 @@ function openAiKeyModal() {
     }
 }
 
+// --- Normalization & Duplicate Prevention Engine ---
+
+function normalizeConceptName(str) {
+    if (!str) return "";
+    return str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove accents: á->a, ó->o
+        .replace(/[\–\—\_]/g, "-")       // Normalize dashes
+        .replace(/\s+/g, " ")            // Collapse multiple spaces to 1
+        .trim()
+        .toUpperCase();
+}
+
+async function calculateFileSHA256(file) {
+    try {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+        console.warn("SHA256 calculation notice:", e);
+        return null;
+    }
+}
+
+function getStoredFileHashes() {
+    try {
+        const stored = localStorage.getItem("stockmaster_loaded_file_hashes");
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) { return []; }
+}
+
+function saveFileHashRecord(fileHash, fileName, summary, total) {
+    if (!fileHash) return;
+    const hashes = getStoredFileHashes();
+    hashes.push({
+        hash: fileHash,
+        fileName: fileName || "Remito.pdf",
+        date: getFormattedDate(),
+        summary: summary || "Remito cargado",
+        total: total || 0
+    });
+    localStorage.setItem("stockmaster_loaded_file_hashes", JSON.stringify(hashes));
+}
+
+// Global batch state
+let currentBatchSession = null;
+let currentLoadedPdfDoc = null;
+let pendingFileToProcess = null;
+let pendingPdfTotalPages = 0;
+
 // Router for dropped or selected files (PDF or Images)
-function handleUploadedFile(file) {
+async function handleUploadedFile(file, forceBypassDuplicate = false) {
     if (!file) return;
-    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-        parsePDF(file);
+
+    // 1. Level 1 Duplicate Detection (SHA-256 Fingerprint)
+    if (!forceBypassDuplicate) {
+        const fileHash = await calculateFileSHA256(file);
+        if (fileHash) {
+            const hashes = getStoredFileHashes();
+            const existing = hashes.find(h => h.hash === fileHash);
+            if (existing) {
+                const dupModal = document.getElementById("duplicate-remito-modal");
+                document.getElementById("dup-modal-filename").innerText = existing.fileName || file.name;
+                document.getElementById("dup-modal-details").innerText = `Cargado previamente el ${existing.date} • Total: $${(existing.total || 0).toLocaleString('es-AR')}`;
+                
+                const btnForce = document.getElementById("btn-duplicate-force-continue");
+                if (btnForce) {
+                    btnForce.onclick = () => {
+                        closeModal("duplicate-remito-modal");
+                        handleUploadedFile(file, true);
+                    };
+                }
+                openModal("duplicate-remito-modal");
+                return;
+            }
+        }
+    }
+
+    // 2. Check if file is PDF
+    const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (isPDF) {
+        detectPDFPagesAndOpenConfig(file);
     } else {
         handleAIFileSelected(file);
+    }
+}
+
+// Detect PDF page count with PDF.js
+function detectPDFPagesAndOpenConfig(file) {
+    pendingFileToProcess = file;
+    const reader = new FileReader();
+    reader.onload = function() {
+        const typedarray = new Uint8Array(this.result);
+        if (typeof pdfjsLib === "undefined") {
+            // Fallback if pdfjsLib is unavailable
+            handleAIFileSelected(file);
+            return;
+        }
+
+        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+            currentLoadedPdfDoc = pdf;
+            pendingPdfTotalPages = pdf.numPages;
+
+            if (pendingPdfTotalPages > 3) {
+                // Open Configuration Modal for Multi-Page PDF
+                document.getElementById("batch-modal-filename").innerText = file.name;
+                document.getElementById("batch-modal-pagecount").innerText = `${pendingPdfTotalPages} páginas`;
+                document.getElementById("opt-desc-all").innerText = `Desde la pág. 1 hasta la pág. ${pendingPdfTotalPages}`;
+                
+                document.getElementById("batch-range-from").max = pendingPdfTotalPages;
+                document.getElementById("batch-range-to").max = pendingPdfTotalPages;
+                document.getElementById("batch-range-to").value = pendingPdfTotalPages;
+                
+                handleRangeModeChange("all");
+                openModal("pdf-batch-config-modal");
+            } else {
+                // Short PDF (<= 3 pages) -> Process directly in 1 batch
+                startDirectPDFScan(file, [1, 2, 3].slice(0, pendingPdfTotalPages));
+            }
+        }).catch(err => {
+            console.error("PDF Read Error:", err);
+            handleAIFileSelected(file);
+        });
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// Range Mode Selector (All / Continuous Range / Custom Pattern)
+function handleRangeModeChange(mode) {
+    document.querySelectorAll(".batch-option-card").forEach(c => c.classList.remove("selected"));
+    
+    if (mode === "all") {
+        document.getElementById("opt-card-all")?.classList.add("selected");
+        document.querySelector('input[name="batch-range-mode"][value="all"]').checked = true;
+    } else if (mode === "range") {
+        document.getElementById("opt-card-range")?.classList.add("selected");
+        document.querySelector('input[name="batch-range-mode"][value="range"]').checked = true;
+    } else if (mode === "custom") {
+        document.getElementById("opt-card-custom")?.classList.add("selected");
+        document.querySelector('input[name="batch-range-mode"][value="custom"]').checked = true;
+    }
+    updateBatchConfigSummary();
+}
+
+function parsePageRangeString(rangeStr, maxPages) {
+    if (!rangeStr) return [];
+    const pages = new Set();
+    const parts = rangeStr.split(/[,;\s]+/);
+    
+    parts.forEach(p => {
+        const trimmed = p.trim();
+        if (trimmed.includes("-")) {
+            const [startStr, endStr] = trimmed.split("-");
+            const start = parseInt(startStr);
+            const end = parseInt(endStr);
+            if (!isNaN(start) && !isNaN(end)) {
+                for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
+                    if (i >= 1 && i <= maxPages) pages.add(i);
+                }
+            }
+        } else {
+            const num = parseInt(trimmed);
+            if (!isNaN(num) && num >= 1 && num <= maxPages) pages.add(num);
+        }
+    });
+
+    return Array.from(pages).sort((a, b) => a - b);
+}
+
+function getSelectedPagesFromConfig() {
+    const mode = document.querySelector('input[name="batch-range-mode"]:checked')?.value || "all";
+    if (mode === "all") {
+        const pages = [];
+        for (let i = 1; i <= pendingPdfTotalPages; i++) pages.push(i);
+        return pages;
+    } else if (mode === "range") {
+        const from = Math.max(1, parseInt(document.getElementById("batch-range-from").value) || 1);
+        const to = Math.min(pendingPdfTotalPages, parseInt(document.getElementById("batch-range-to").value) || pendingPdfTotalPages);
+        const pages = [];
+        for (let i = Math.min(from, to); i <= Math.max(from, to); i++) pages.push(i);
+        return pages;
+    } else if (mode === "custom") {
+        const str = document.getElementById("batch-range-custom").value;
+        return parsePageRangeString(str, pendingPdfTotalPages);
+    }
+    return [];
+}
+
+function updateBatchConfigSummary() {
+    const pages = getSelectedPagesFromConfig();
+    const batchSize = parseInt(document.getElementById("batch-size-select")?.value) || 3;
+    const numBatches = Math.ceil(pages.length / batchSize) || 1;
+
+    const summaryEl = document.getElementById("batch-summary-text");
+    if (summaryEl) {
+        if (pages.length === 0) {
+            summaryEl.innerText = "⚠️ Por favor ingresa un rango de páginas válido.";
+            summaryEl.style.color = "var(--color-danger)";
+        } else {
+            summaryEl.innerText = `⚡ Se procesarán ${pages.length} páginas seleccionadas en ${numBatches} lotes de ${batchSize} págs.`;
+            summaryEl.style.color = "#fff";
+        }
+    }
+}
+
+// Start Batch Processing after confirming configuration
+function confirmBatchConfigAndStart() {
+    const pages = getSelectedPagesFromConfig();
+    if (pages.length === 0) {
+        showToast("Selecciona al menos una página válida", "warning");
+        return;
+    }
+
+    const batchSize = parseInt(document.getElementById("batch-size-select")?.value) || 3;
+    closeModal("pdf-batch-config-modal");
+
+    // Partition into chunks
+    const batches = [];
+    for (let i = 0; i < pages.length; i += batchSize) {
+        batches.push({
+            batchIndex: batches.length + 1,
+            pages: pages.slice(i, i + batchSize),
+            status: "pending"
+        });
+    }
+
+    currentBatchSession = {
+        id: "batch_" + Date.now(),
+        fileName: pendingFileToProcess ? pendingFileToProcess.name : "Remito.pdf",
+        totalBatches: batches.length,
+        currentBatchIndex: 0,
+        batches: batches,
+        confirmedItemsCount: 0,
+        confirmedTotalCost: 0,
+        createdDate: getFormattedDate()
+    };
+
+    saveBatchSessionLocal();
+    updateBatchResumeBanner();
+    processBatch(0);
+}
+
+function startDirectPDFScan(file, pages) {
+    currentBatchSession = {
+        id: "batch_" + Date.now(),
+        fileName: file.name,
+        totalBatches: 1,
+        currentBatchIndex: 0,
+        batches: [{ batchIndex: 1, pages: pages, status: "pending" }],
+        confirmedItemsCount: 0,
+        confirmedTotalCost: 0,
+        createdDate: getFormattedDate()
+    };
+    saveBatchSessionLocal();
+    processBatch(0);
+}
+
+function saveBatchSessionLocal() {
+    if (currentBatchSession) {
+        localStorage.setItem("stockmaster_active_batch_queue", JSON.stringify(currentBatchSession));
+    } else {
+        localStorage.removeItem("stockmaster_active_batch_queue");
+    }
+    updateBatchResumeBanner();
+}
+
+function updateBatchResumeBanner() {
+    const banner = document.getElementById("batch-resume-banner");
+    if (!banner) return;
+
+    try {
+        const stored = localStorage.getItem("stockmaster_active_batch_queue");
+        if (stored) {
+            const session = JSON.parse(stored);
+            if (session && session.currentBatchIndex < session.totalBatches) {
+                document.getElementById("resume-banner-title").innerText = `📌 Remito en pausa: ${session.fileName}`;
+                document.getElementById("resume-banner-subtitle").innerText = `Progreso: Lote ${session.currentBatchIndex + 1} de ${session.totalBatches} pendiente de confirmar`;
+                banner.classList.remove("hidden");
+                return;
+            }
+        }
+    } catch(e) {}
+    banner.classList.add("hidden");
+}
+
+function resumeBatchSession() {
+    try {
+        const stored = localStorage.getItem("stockmaster_active_batch_queue");
+        if (stored) {
+            currentBatchSession = JSON.parse(stored);
+            if (currentBatchSession) {
+                processBatch(currentBatchSession.currentBatchIndex);
+                showToast(`Reanudando ${currentBatchSession.fileName} (Lote ${currentBatchSession.currentBatchIndex + 1})`, "info");
+            }
+        }
+    } catch(e) {
+        console.error("Resume error:", e);
+    }
+}
+
+function cancelBatchSession() {
+    if (confirm("¿Deseas descartar los lotes restantes de este remito? Los productos ya confirmados quedarán guardados en tu stock.")) {
+        currentBatchSession = null;
+        localStorage.removeItem("stockmaster_active_batch_queue");
+        updateBatchResumeBanner();
+        resetScanState();
+        showToast("Lotes restantes cancelados", "warning");
+    }
+}
+
+// Process active batch pages with PDF.js & Gemini AI
+async function processBatch(batchIdx) {
+    if (!currentBatchSession || !currentBatchSession.batches[batchIdx]) return;
+    
+    currentBatchSession.currentBatchIndex = batchIdx;
+    saveBatchSessionLocal();
+
+    const batch = currentBatchSession.batches[batchIdx];
+    batch.status = "processing";
+
+    // UI Updates
+    renderBatchProgressBar();
+
+    const dropzoneContentNormal = document.getElementById("dropzone-content-normal");
+    const dropzonePreview = document.getElementById("dropzone-preview");
+    const scannerStatusText = document.getElementById("scanner-status-text");
+    const laserLine = document.getElementById("laser-line");
+
+    if (dropzoneContentNormal) dropzoneContentNormal.classList.add("hidden");
+    if (dropzonePreview) dropzonePreview.classList.remove("hidden");
+    if (laserLine) laserLine.classList.remove("hidden");
+    if (scannerStatusText) scannerStatusText.innerText = `Analizando Lote ${batch.batchIndex} de ${currentBatchSession.totalBatches} (Págs ${batch.pages.join(', ')})...`;
+
+    // Extract text and table from batch pages
+    if (currentLoadedPdfDoc) {
+        const countPromises = batch.pages.map(pageNum => {
+            return currentLoadedPdfDoc.getPage(pageNum).then(page => {
+                return page.getTextContent().then(textContent => {
+                    const items = textContent.items.map(item => ({
+                        text: item.str,
+                        x: item.transform[4],
+                        y: item.transform[5]
+                    }));
+
+                    items.sort((a, b) => {
+                        if (Math.abs(a.y - b.y) > 5) return b.y - a.y;
+                        return a.x - b.x;
+                    });
+
+                    let lines = [];
+                    let currentLine = [];
+                    let currentY = null;
+
+                    items.forEach(item => {
+                        if (currentY === null) {
+                            currentY = item.y;
+                            currentLine.push(item);
+                        } else if (Math.abs(item.y - currentY) > 5) {
+                            lines.push(currentLine);
+                            currentLine = [item];
+                            currentY = item.y;
+                        } else {
+                            currentLine.push(item);
+                        }
+                    });
+                    if (currentLine.length > 0) lines.push(currentLine);
+
+                    return lines.map(line => line.sort((a, b) => a.x - b.x).map(i => i.text).join(" ")).join("\n");
+                });
+            });
+        });
+
+        Promise.all(countPromises).then(pageTexts => {
+            const fullText = pageTexts.join("\n");
+            const items = parseInvoiceText(fullText);
+
+            setTimeout(() => {
+                if (laserLine) laserLine.classList.add("hidden");
+                if (scannerStatusText) scannerStatusText.innerText = `¡Lote ${batch.batchIndex} leído con éxito!`;
+                showToast(`Lote ${batch.batchIndex}: Se detectaron ${items.length} productos`, "success");
+
+                const resultsPanel = document.getElementById("results-panel");
+                const emptyResultsState = document.getElementById("empty-results-state");
+                const resultsContent = document.getElementById("results-content");
+
+                if (resultsPanel) resultsPanel.classList.remove("locked");
+                if (emptyResultsState) emptyResultsState.classList.add("hidden");
+                if (resultsContent) resultsContent.classList.remove("hidden");
+
+                renderParsedResults(items);
+            }, 1000);
+        }).catch(err => {
+            console.error("Batch processing error:", err);
+            showToast("Error al procesar el lote", "danger");
+            resetScanState();
+        });
+    } else {
+        // Direct image or fallback
+        handleAIFileSelected(pendingFileToProcess);
+    }
+}
+
+function renderBatchProgressBar() {
+    const container = document.getElementById("batch-progress-container");
+    const stepBar = document.getElementById("batch-step-bar");
+    if (!container || !stepBar || !currentBatchSession || currentBatchSession.totalBatches <= 1) {
+        if (container) container.classList.add("hidden");
+        return;
+    }
+
+    container.classList.remove("hidden");
+    const currentIdx = currentBatchSession.currentBatchIndex;
+    const currentBatch = currentBatchSession.batches[currentIdx];
+
+    document.getElementById("batch-progress-title").innerText = `Lote ${currentIdx + 1} de ${currentBatchSession.totalBatches} (${currentBatchSession.fileName})`;
+    document.getElementById("batch-progress-subtitle").innerText = `Páginas: ${currentBatch.pages.join(', ')}`;
+
+    stepBar.innerHTML = "";
+    currentBatchSession.batches.forEach((b, idx) => {
+        const pill = document.createElement("div");
+        const isDone = idx < currentIdx;
+        const isActive = idx === currentIdx;
+
+        pill.className = `batch-step-pill ${isDone ? 'completed' : ''} ${isActive ? 'active' : ''}`;
+        pill.innerHTML = `
+            <i class="fa-solid ${isDone ? 'fa-circle-check text-success' : isActive ? 'fa-spinner fa-spin text-purple' : 'fa-circle'}"></i>
+            Lote ${b.batchIndex} (Págs ${b.pages.join(',')})
+        `;
+        stepBar.appendChild(pill);
+    });
+
+    // Update confirm button text
+    const btnConfirm = document.getElementById("btn-confirm-import");
+    if (btnConfirm) {
+        const isLast = currentIdx >= currentBatchSession.totalBatches - 1;
+        btnConfirm.innerHTML = isLast 
+            ? `<i class="fa-solid fa-check-double"></i> Confirmar Lote ${currentIdx + 1} y Finalizar Remito`
+            : `<i class="fa-solid fa-arrow-right"></i> Confirmar Lote ${currentIdx + 1} y Procesar Lote ${currentIdx + 2} ➔`;
     }
 }
 
@@ -1911,23 +2484,23 @@ async function handleAIFileSelected(file) {
     const scannerStatusText = document.getElementById("scanner-status-text");
     const laserLine = document.getElementById("laser-line");
 
-    dropzoneContentNormal.classList.add("hidden");
-    dropzonePreview.classList.remove("hidden");
-    laserLine.classList.remove("hidden");
+    if (dropzoneContentNormal) dropzoneContentNormal.classList.add("hidden");
+    if (dropzonePreview) dropzonePreview.classList.remove("hidden");
+    if (laserLine) laserLine.classList.remove("hidden");
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-        previewImg.src = e.target.result;
-        scannerStatusText.innerText = "Analizando foto del remito con Gemini IA...";
+        if (previewImg && file.type.startsWith("image/")) previewImg.src = e.target.result;
+        if (scannerStatusText) scannerStatusText.innerText = "Analizando documento con Gemini IA...";
 
         try {
             const base64Data = e.target.result.split(',')[1];
-            const mimeType = file.type || "image/jpeg";
+            const mimeType = file.type || (file.name.endsWith(".pdf") ? "application/pdf" : "image/jpeg");
 
             const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
 
             const promptText = `Eres un asistente experto en contabilidad y control de stock textil.
-Analiza detenidamente esta foto de remito o factura de ropa y extrae todos los artículos en una lista JSON estructurada.
+Analiza detenidamente este remito o factura de ropa y extrae todos los artículos en una lista JSON estructurada.
 Para cada artículo detectado, extrae:
 - "name": Nombre descriptivo de la prenda (ej: "PANTALON BORJA FRISA", "REMERA FIDEL"). Limpia números de orden o códigos iniciales.
 - "category": Clasifica como "Varón", "Mujer" o "Unisex".
@@ -1952,7 +2525,8 @@ Devuelve ÚNICAMENTE un array JSON válido con los objetos, sin texto explicativ
                     }
                 ],
                 generationConfig: {
-                    response_mime_type: "application/json"
+                    response_mime_type: "application/json",
+                    maxOutputTokens: 8192
                 }
             };
 
@@ -1972,23 +2546,23 @@ Devuelve ÚNICAMENTE un array JSON válido con los objetos, sin texto explicativ
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
             const items = JSON.parse(rawText);
 
-            laserLine.classList.add("hidden");
-            scannerStatusText.innerText = "¡Lectura finalizada con Gemini IA!";
+            if (laserLine) laserLine.classList.add("hidden");
+            if (scannerStatusText) scannerStatusText.innerText = "¡Lectura finalizada con Gemini IA!";
             showToast(`Se detectaron ${items.length} productos con IA`, "success");
 
             const resultsPanel = document.getElementById("results-panel");
             const emptyResultsState = document.getElementById("empty-results-state");
             const resultsContent = document.getElementById("results-content");
 
-            resultsPanel.classList.remove("locked");
-            emptyResultsState.classList.add("hidden");
-            resultsContent.classList.remove("hidden");
+            if (resultsPanel) resultsPanel.classList.remove("locked");
+            if (emptyResultsState) emptyResultsState.classList.add("hidden");
+            if (resultsContent) resultsContent.classList.remove("hidden");
 
             renderParsedResults(items);
         } catch (error) {
             console.error("Error Gemini OCR:", error);
-            laserLine.classList.add("hidden");
-            scannerStatusText.innerText = "Error en lectura IA";
+            if (laserLine) laserLine.classList.add("hidden");
+            if (scannerStatusText) scannerStatusText.innerText = "Error en lectura IA";
             showToast(`Error al procesar con IA: ${error.message}`, "danger");
             if (error.message.toLowerCase().includes("api key") || error.message.toLowerCase().includes("invalid")) {
                 openAiKeyModal();
@@ -1997,27 +2571,6 @@ Devuelve ÚNICAMENTE un array JSON válido con los objetos, sin texto explicativ
     };
     reader.readAsDataURL(file);
 }
-
-// Real PDF Text Parser using PDF.js
-function parsePDF(file) {
-    const reader = new FileReader();
-    reader.onload = function() {
-        const typedarray = new Uint8Array(this.result);
-        
-        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
-            let maxPages = pdf.numPages;
-            let countPromises = [];
-            
-            for (let j = 1; j <= maxPages; j++) {
-                countPromises.push(
-                    pdf.getPage(j).then(page => {
-                        return page.getTextContent().then(textContent => {
-                            const items = textContent.items;
-                            let textItems = items.map(item => ({
-                                text: item.str,
-                                x: item.transform[4],
-                                y: item.transform[5]
-                            }));
                             
                             // Sort by Y coordinate descending (top to bottom), then X ascending (left to right)
                             textItems.sort((a, b) => {
@@ -2420,11 +2973,12 @@ function confirmImportResults() {
             summaryItems.push(name);
         }
 
-        // Check if item already exists in stock (match by name, category, size)
+        // Check if item already exists in stock using smart canonical normalization
+        const normName = normalizeConceptName(name);
         const existing = inventory.find(i => 
-            i.name.toLowerCase() === name.toLowerCase() && 
-            i.category === category && 
-            i.size === size
+            normalizeConceptName(i.name) === normName && 
+            i.category.toLowerCase() === category.toLowerCase() && 
+            (i.size || '-').trim().toUpperCase() === size.trim().toUpperCase()
         );
 
         if (existing) {
@@ -2451,9 +3005,12 @@ function confirmImportResults() {
 
     // Record the Purchase transaction
     const dateStr = getFormattedDate();
+    const isBatchActive = currentBatchSession && currentBatchSession.totalBatches > 1;
+    const batchSuffix = isBatchActive ? ` (Lote ${currentBatchSession.currentBatchIndex + 1}/${currentBatchSession.totalBatches})` : "";
+    
     const purchaseObj = {
         date: dateStr,
-        summary: `Remito Escaneado: ${summaryItems.slice(0, 3).join(', ')}${summaryItems.length > 3 ? '...' : ''}`,
+        summary: `Remito Escaneado${batchSuffix}: ${summaryItems.slice(0, 3).join(', ')}${summaryItems.length > 3 ? '...' : ''}`,
         qty: addedCount,
         total: purchaseTotalCost
     };
@@ -2463,15 +3020,35 @@ function confirmImportResults() {
     saveInventory();
     savePurchases();
     renderAll();
-    
-    resetScanState();
 
-    showToast(`Se cargaron con éxito ${addedCount} unidades al inventario`, "success");
+    // Check if there are more batches in the queue
+    if (currentBatchSession && currentBatchSession.currentBatchIndex < currentBatchSession.totalBatches - 1) {
+        currentBatchSession.confirmedItemsCount += addedCount;
+        currentBatchSession.confirmedTotalCost += purchaseTotalCost;
+        const nextBatchIdx = currentBatchSession.currentBatchIndex + 1;
+        currentBatchSession.currentBatchIndex = nextBatchIdx;
+        saveBatchSessionLocal();
 
-    // Navigate back to stock table
-    setTimeout(() => {
-        document.querySelector(".nav-item[data-tab='inventario']").click();
-    }, 800);
+        showToast(`Lote ${nextBatchIdx} de ${currentBatchSession.totalBatches} ingresado. Iniciando Lote ${nextBatchIdx + 1}...`, "success");
+        processBatch(nextBatchIdx);
+    } else {
+        // Final batch or single scan completed
+        if (currentBatchSession && pendingFileToProcess) {
+            calculateFileSHA256(pendingFileToProcess).then(hash => {
+                if (hash) saveFileHashRecord(hash, pendingFileToProcess.name, purchaseObj.summary, purchaseTotalCost);
+            });
+        }
+
+        currentBatchSession = null;
+        saveBatchSessionLocal();
+        resetScanState();
+
+        showToast(`¡Remito completado! Se cargaron ${addedCount} unidades al inventario`, "success");
+
+        setTimeout(() => {
+            document.querySelector(".nav-item[data-tab='inventario']").click();
+        }, 800);
+    }
 }
 
 // Register a Sale and discount stock
