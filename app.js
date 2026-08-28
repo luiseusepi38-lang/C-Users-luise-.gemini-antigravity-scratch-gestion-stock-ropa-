@@ -708,6 +708,80 @@ window.deleteSale = function(idx) {
     }
 }
 
+// Export complete backup as .json file
+window.exportDataBackup = function() {
+    const backupData = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        inventory: inventory || [],
+        purchases: purchases || [],
+        sales: sales || []
+    };
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    const today = new Date().toISOString().split("T")[0];
+    a.href = url;
+    a.download = `stockmaster_respaldo_${today}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast("Copia de seguridad descargada", "success");
+};
+
+// Import backup from .json file and sync to Cloud
+window.handleBackupFile = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!data.inventory && !data.purchases && !data.sales) {
+                throw new Error("El archivo no tiene el formato esperado");
+            }
+
+            if (Array.isArray(data.inventory)) {
+                inventory = data.inventory;
+                saveInventory();
+                for (const item of inventory) {
+                    await upsertInventoryCloud(item);
+                }
+            }
+
+            if (Array.isArray(data.purchases)) {
+                purchases = data.purchases;
+                savePurchases();
+                for (const p of purchases) {
+                    await insertPurchaseCloud(p);
+                }
+            }
+
+            if (Array.isArray(data.sales)) {
+                sales = data.sales;
+                saveSales();
+                for (const s of sales) {
+                    await insertSaleCloud(s);
+                }
+            }
+
+            renderAll();
+            showToast(`¡Datos restaurados con éxito! (${inventory.length} productos en la nube)`, "success");
+        } catch (err) {
+            console.error("Error import backup:", err);
+            showToast("Error al leer el archivo de respaldo: " + err.message, "danger");
+        }
+        event.target.value = "";
+    };
+    reader.readAsText(file);
+};
+
 // Global Tab Switcher Function (Guaranteed to work via onclick & event listeners)
 window.switchTab = function(tabId) {
     if (!tabId) return;
