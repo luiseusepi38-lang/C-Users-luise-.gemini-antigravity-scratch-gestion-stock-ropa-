@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockMaster - Control de Stock Inteligente</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- PDF.js library for client-side PDF parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        // Set workerSrc for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-boxes-packing logo-icon"></i>
+                <div class="logo-text">
+                    <span class="logo-title">StockMaster</span>
+                    <span class="logo-subtitle">Ropa & Calzado</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-chart-pie"></i> Panel General
+                </button>
+                <button class="nav-item" data-tab="inventario">
+                    <i class="fa-solid fa-list-check"></i> Inventario
+                </button>
+                <button class="nav-item" data-tab="compras">
+                    <i class="fa-solid fa-cart-shopping"></i> Compras
+                </button>
+                <button class="nav-item" data-tab="ventas">
+                    <i class="fa-solid fa-cash-register"></i> Ventas
+                </button>
+                <button class="nav-item" data-tab="costos">
+                    <i class="fa-solid fa-tags"></i> Costos
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <p class="app-version">Versión 1.0.0</p>
+                <p class="app-author">Diseñado para tu negocio</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <div class="header-title">
+                    <h1 id="page-title">Panel General</h1>
+                    <p class="current-date" id="header-date">Viernes, 24 de Julio</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="btn-quick-add">
+                        <i class="fa-solid fa-plus"></i> Carga Rápida
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Tab -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="dashboard-grid">
+                    <!-- Metrics Card 1 -->
+                    <div class="metric-card card-gradient-1">
+                        <div class="card-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Prendas en Stock</span>
+                            <span class="card-value" id="stat-total-items">0</span>
+                        </div>
+                    </div>
+                    <!-- Metrics Card 2 -->
+                    <div class="metric-card card-gradient-3">
+                        <div class="card-icon"><i class="fa-solid fa-warehouse"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Valor de Stock</span>
+                            <span class="card-value" id="stat-total-value">$0.00</span>
+                        </div>
+                    </div>
+                    <!-- Metrics Card 3 -->
+                    <div class="metric-card card-gradient-2">
+                        <div class="card-icon"><i class="fa-solid fa-receipt"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Ventas Totales</span>
+                            <span class="card-value" id="stat-total-sales">$0.00</span>
+                        </div>
+                    </div>
+                    <!-- Metrics Card 4 -->
+                    <div class="metric-card card-gradient-1" style="border-color: rgba(16, 185, 129, 0.3);">
+                        <div class="card-icon" style="background-color: rgba(16, 185, 129, 0.15); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.3);"><i class="fa-solid fa-scale-balanced"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Caja / Balance</span>
+                            <span class="card-value" id="stat-balance">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert Section & Distribution -->
+                <div class="row">
+                    <div class="col-8">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Alertas de Stock Bajo</h3>
+                                <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                            </div>
+                            <div class="alert-list" id="low-stock-list">
+                                <!-- Dynamic Low Stock Items -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Por Categoría</h3>
+                            </div>
+                            <div class="category-breakdown" id="category-breakdown-list">
+                                <!-- Category Bars -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Inventario Tab -->
+            <section id="tab-inventario" class="tab-content">
+                <div class="panel filter-panel">
+                    <div class="search-bar-container">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="search-input" placeholder="Buscar por producto, color, talle, categoría...">
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <div class="category-tabs" id="inventory-category-tabs">
+                            <button class="cat-tab active" data-cat="todos">Todos</button>
+                            <button class="cat-tab" data-cat="Varón">Varón</button>
+                            <button class="cat-tab" data-cat="Mujer">Mujer</button>
+                            <button class="cat-tab" data-cat="Unisex">Unisex</button>
+                        </div>
+                        <button class="btn" id="btn-clear-inventory" style="background-color: rgba(239, 68, 68, 0.12); color: var(--color-danger); border: 1px solid rgba(239, 68, 68, 0.25); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem;" title="Borrar todo el inventario">
+                            <i class="fa-solid fa-trash-can"></i> Vaciar Inventario
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="table-responsive">
+                        <table class="inventory-table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Categoría</th>
+                                    <th>Talle</th>
+                                    <th class="text-center">Stock</th>
+                                    <th class="text-right">Precio Unit.</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-tbody">
+                                <!-- Dynamic Inventory Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Compras Tab (Escáner e Historial) -->
+            <section id="tab-compras" class="tab-content">
+                <div class="panel scan-instructions">
+                    <h2><i class="fa-solid fa-cart-shopping icon-accent"></i> Gestión de Compras</h2>
+                    <p>Sube la foto del remito o factura de tu proveedor para cargar la mercadería al inventario automáticamente.</p>
+                </div>
+
+                <div class="scan-workspace">
+                    <div class="row">
+                        <!-- Dropzone Area -->
+                        <div class="col-6">
+                            <div class="panel dropzone-panel">
+                                <div class="dropzone" id="dropzone">
+                                    <input type="file" id="file-input" accept="image/*,application/pdf" style="display: none;">
+                                    <div class="dropzone-content" id="dropzone-content-normal">
+                                        <div class="dropzone-icon">
+                                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                                        </div>
+                                        <h3>Arrastra aquí tu remito (Foto o PDF)</h3>
+                                        <p>o haz clic para explorar tus archivos</p>
+                                        <div class="supported-formats">Formatos soportados: PDF, JPG, PNG</div>
+                                    </div>
+                                    
+                                    <!-- Scan Preview container -->
+                                    <div class="dropzone-preview hidden" id="dropzone-preview">
+                                        <img src="" alt="Remito" id="preview-img">
+                                        <div class="laser-scanner" id="laser-line"></div>
+                                        <div class="scanner-status" id="scanner-status-text">Escaneando remito...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scan Results / Confirmation Panel -->
+                        <div class="col-6">
+                            <div class="panel results-panel locked" id="results-panel">
+                                <div class="panel-header">
+                                    <h3>Artículos Detectados en el Remito</h3>
+                                    <span class="badge" id="detected-count">0 Detectados</span>
+                                </div>
+                                
+                                <div class="empty-results-state" id="empty-results-state">
+                                    <i class="fa-solid fa-clipboard-question"></i>
+                                    <p>Sube una foto para iniciar la lectura del remito y extraer el desglose de talles.</p>
+                                </div>
+
+                                <div class="results-content hidden" id="results-content">
+                                    <div class="results-table-container">
+                                        <table class="results-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 40px;"></th>
+                                                    <th>Producto</th>
+                                                    <th>Categoría / Talle (Manual)</th>
+                                                    <th style="width: 60px;">Cant.</th>
+                                                    <th style="width: 90px; text-align: right;">Costo Unit.</th>
+                                                    <th style="width: 100px; text-align: right;">Subtotal</th>
+                                                    <th style="width: 160px; text-align: right;">P. Venta (+60% / +80%)</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="results-tbody">
+                                                <!-- Dynamic Items Extracted -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="results-actions">
+                                        <button class="btn btn-secondary" id="btn-add-item-row">
+                                            <i class="fa-solid fa-plus"></i> Agregar Fila
+                                        </button>
+                                        <button class="btn btn-primary" id="btn-confirm-import">
+                                            <i class="fa-solid fa-check-double"></i> Cargar al Stock General
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Purchases History -->
+                <div class="panel" style="margin-top: 1.5rem;">
+                    <div class="panel-header">
+                        <h3>Historial de Compras / Remitos Cargados</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="inventory-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Productos Ingresados</th>
+                                    <th class="text-center">Total Unidades</th>
+                                    <th class="text-right">Monto Total</th>
+                                    <th class="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchases-history-tbody">
+                                <!-- Dynamic Purchase History -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Ventas Tab -->
+            <section id="tab-ventas" class="tab-content">
+                <div class="panel scan-instructions">
+                    <h2><i class="fa-solid fa-cash-register icon-accent"></i> Registro de Ventas</h2>
+                    <p>Registra las ventas de tu local para que el stock de prendas y calzado se disminuya de forma automática.</p>
+                </div>
+
+                <div class="row">
+                    <!-- Register Sale Panel -->
+                    <div class="col-5">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Registrar Nueva Venta</h3>
+                            </div>
+                            <form id="sale-form">
+                                <div class="form-group">
+                                    <label for="sale-product-select">Seleccionar Producto en Stock</label>
+                                    <select id="sale-product-select" required>
+                                        <option value="">Seleccionar producto...</option>
+                                        <!-- Dynamic options populated from inventory -->
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group col-6">
+                                        <label for="sale-quantity">Cantidad a Vender</label>
+                                        <input type="number" id="sale-quantity" min="1" value="1" required>
+                                        <small class="form-tip" id="sale-stock-avail">Stock disponible: -</small>
+                                    </div>
+                                    <div class="form-group col-6">
+                                        <label for="sale-price">Precio de Venta Unitario ($)</label>
+                                        <input type="number" id="sale-price" min="0" step="0.01" required>
+                                        <small class="form-tip">Sugerido del inventario.</small>
+                                    </div>
+                                </div>
+                                <div class="modal-footer" style="padding: 0; margin-top: 1rem;">
+                                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                                        <i class="fa-solid fa-cart-shopping"></i> Registrar y Descontar Stock
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Sales History Panel -->
+                    <div class="col-7">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <h3>Historial de Ventas</h3>
+                            </div>
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="inventory-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Detalle Producto</th>
+                                            <th class="text-center">Cant.</th>
+                                            <th class="text-right">Precio Unit.</th>
+                                            <th class="text-right">Total</th>
+                                            <th class="text-right">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sales-history-tbody">
+                                        <!-- Dynamic Sales History -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Costos Tab -->
+            <section id="tab-costos" class="tab-content">
+                <div class="panel scan-instructions">
+                    <h2><i class="fa-solid fa-tags icon-accent"></i> Control de Costos</h2>
+                    <p>Consulta el costo unitario de compra de cada prenda en tu inventario, su precio de venta, y el margen de ganancia estimado.</p>
+                </div>
+
+                <div class="panel">
+                    <div class="table-responsive">
+                        <table class="inventory-table">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Categoría</th>
+                                    <th>Talle</th>
+                                    <th class="text-center">Stock</th>
+                                    <th class="text-right">Costo Unit.</th>
+                                    <th class="text-right">Precio Venta</th>
+                                    <th class="text-right">Margen ($)</th>
+                                    <th class="text-right">Margen (%)</th>
+                                    <th class="text-right">Valor Total Costo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="costos-tbody">
+                                <!-- Dynamic Cost Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Quick Add / Edit Modal -->
+    <div class="modal" id="product-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Agregar Producto</h3>
+                <button class="btn-close" id="modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="product-form">
+                <input type="hidden" id="form-product-id">
+                <div class="form-group">
+                    <label for="form-name">Nombre del Producto</label>
+                    <input type="text" id="form-name" placeholder="Ej: Jean Azul Recto, Remera Clásica" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="form-category">Categoría</label>
+                        <select id="form-category" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="Varón">Varón</option>
+                            <option value="Mujer">Mujer</option>
+                            <option value="Unisex">Unisex</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="form-size">Talle (Opcional)</label>
+                        <input type="text" id="form-size" placeholder="Ej: 12, 34, RN">
+                        <small class="form-tip" id="size-tip"></small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-4">
+                        <label for="form-stock">Stock Inicial</label>
+                        <input type="number" id="form-stock" min="0" placeholder="0" required>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="form-cost">Costo Unitario (Compra)</label>
+                        <input type="number" id="form-cost" min="0" step="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="form-price">Precio Venta</label>
+                        <input type="number" id="form-price" min="0" step="0.01" placeholder="0.00" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-modal-cancel">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-modal-save">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
