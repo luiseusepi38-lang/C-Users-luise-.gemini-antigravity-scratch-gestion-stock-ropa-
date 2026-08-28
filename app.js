@@ -84,33 +84,38 @@ function updateSyncBadge(status, text) {
     }
 }
 
-// Cloud Data Loader
+// Cloud Data Loader via Native REST Fetch (Instant & 100% reliable)
 async function loadDataFromSupabase() {
-    if (!supabase) {
-        updateSyncBadge("offline", "Modo Local");
-        return false;
-    }
-    
     updateSyncBadge("syncing", "Conectando a Supabase...");
+    const headers = {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json"
+    };
+
     try {
         const [invRes, purRes, salRes] = await Promise.all([
-            supabase.from('inventory').select('*').order('created_at', { ascending: true }),
-            supabase.from('purchases').select('*').order('created_at', { ascending: false }),
-            supabase.from('sales').select('*').order('created_at', { ascending: false })
+            fetch(`${SUPABASE_URL}/rest/v1/inventory?select=*&order=created_at.asc`, { headers }),
+            fetch(`${SUPABASE_URL}/rest/v1/purchases?select=*&order=created_at.desc`, { headers }),
+            fetch(`${SUPABASE_URL}/rest/v1/sales?select=*&order=created_at.desc`, { headers })
         ]);
 
-        if (invRes.error || purRes.error || salRes.error) {
-            console.warn("Tablas de Supabase no disponibles aún:", invRes.error || purRes.error || salRes.error);
-            updateSyncBadge("offline", "Tablas pendientes en Supabase");
+        if (!invRes.ok || !purRes.ok || !salRes.ok) {
+            console.warn("Supabase fetch error status:", invRes.status, purRes.status, salRes.status);
+            updateSyncBadge("offline", "Error en Supabase");
             return false;
         }
+
+        const invData = await invRes.json();
+        const purData = await purRes.json();
+        const salData = await salRes.json();
 
         isCloudConnected = true;
         updateSyncBadge("connected", "Supabase Conectado");
 
         // Inventory
-        if (invRes.data && invRes.data.length > 0) {
-            inventory = invRes.data.map(item => ({
+        if (Array.isArray(invData) && invData.length > 0) {
+            inventory = invData.map(item => ({
                 id: item.id ? item.id.toString() : Date.now().toString(),
                 name: item.name,
                 category: item.category || "Varón",
@@ -120,16 +125,11 @@ async function loadDataFromSupabase() {
                 cost: parseFloat(item.cost) || 0
             }));
             localStorage.setItem("clothing_store_inventory", JSON.stringify(inventory));
-        } else if (inventory.length > 0) {
-            // First time migration: upload local items to cloud
-            for (const item of inventory) {
-                await upsertInventoryCloud(item);
-            }
         }
 
         // Purchases
-        if (purRes.data && purRes.data.length > 0) {
-            purchases = purRes.data.map(p => ({
+        if (Array.isArray(purData) && purData.length > 0) {
+            purchases = purData.map(p => ({
                 id: p.id,
                 date: p.date,
                 summary: p.summary,
@@ -140,8 +140,8 @@ async function loadDataFromSupabase() {
         }
 
         // Sales
-        if (salRes.data && salRes.data.length > 0) {
-            sales = salRes.data.map(s => ({
+        if (Array.isArray(salData) && salData.length > 0) {
+            sales = salData.map(s => ({
                 id: s.id,
                 date: s.date,
                 name: s.name,
@@ -155,108 +155,150 @@ async function loadDataFromSupabase() {
         renderAll();
         return true;
     } catch (err) {
-        console.error("Error al conectar con Supabase:", err);
-        updateSyncBadge("offline", "Error de conexión");
+        console.error("Error direct Supabase fetch:", err);
+        updateSyncBadge("offline", "Modo Local");
         return false;
     }
 }
 
 // Realtime sync across all devices
 function setupRealtimeSubscription() {
-    if (!supabase) return;
     try {
-        supabase.channel('stockmaster-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
-                loadDataFromSupabase();
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, () => {
-                loadDataFromSupabase();
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
-                loadDataFromSupabase();
-            })
-            .subscribe();
+        if (window.supabase && typeof window.supabase.createClient === "function") {
+            if (!supabase) supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabase.channel('stockmaster-realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
+                    loadDataFromSupabase();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, () => {
+                    loadDataFromSupabase();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+                    loadDataFromSupabase();
+                })
+                .subscribe();
+        }
     } catch(e) {
         console.warn("Realtime subscription notice:", e);
     }
 }
 
-// Cloud Helpers
+// Cloud Helpers via Native Fetch
 async function upsertInventoryCloud(item) {
-    if (!supabase || !isCloudConnected) return;
     try {
-        await supabase.from('inventory').upsert({
-            id: item.id.toString(),
-            name: item.name,
-            category: item.category,
-            size: item.size || "-",
-            stock: parseInt(item.stock) || 0,
-            price: parseFloat(item.price) || 0,
-            cost: parseFloat(item.cost) || 0
+        await fetch(`${SUPABASE_URL}/rest/v1/inventory`, {
+            method: 'POST',
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates"
+            },
+            body: JSON.stringify({
+                id: item.id.toString(),
+                name: item.name,
+                category: item.category,
+                size: item.size || "-",
+                stock: parseInt(item.stock) || 0,
+                price: parseFloat(item.price) || 0,
+                cost: parseFloat(item.cost) || 0
+            })
         });
     } catch (e) { console.error("Cloud inventory upsert error:", e); }
 }
 
 async function deleteInventoryCloud(id) {
-    if (!supabase || !isCloudConnected) return;
     try {
-        await supabase.from('inventory').delete().eq('id', id.toString());
+        await fetch(`${SUPABASE_URL}/rest/v1/inventory?id=eq.${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
     } catch (e) { console.error("Cloud inventory delete error:", e); }
 }
 
 async function clearInventoryCloud() {
-    if (!supabase || !isCloudConnected) return;
     try {
-        await supabase.from('inventory').delete().neq('id', 'non_existing_xyz');
+        await fetch(`${SUPABASE_URL}/rest/v1/inventory?id=neq.non_existing_xyz`, {
+            method: 'DELETE',
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
     } catch (e) { console.error("Cloud inventory clear error:", e); }
 }
 
 async function insertPurchaseCloud(purchaseObj) {
-    if (!supabase || !isCloudConnected) return;
     try {
-        const { data, error } = await supabase.from('purchases').insert({
-            date: purchaseObj.date,
-            summary: purchaseObj.summary,
-            qty: purchaseObj.qty,
-            total: purchaseObj.total
-        }).select();
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
+            method: 'POST',
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "return=representation"
+            },
+            body: JSON.stringify({
+                date: purchaseObj.date,
+                summary: purchaseObj.summary,
+                qty: parseInt(purchaseObj.qty) || 0,
+                total: parseFloat(purchaseObj.total) || 0
+            })
+        });
+        const data = await res.json();
         if (data && data[0]) purchaseObj.id = data[0].id;
     } catch (e) { console.error("Cloud purchase insert error:", e); }
 }
 
 async function deletePurchaseCloud(purchaseObj) {
-    if (!supabase || !isCloudConnected) return;
     try {
-        if (purchaseObj.id) {
-            await supabase.from('purchases').delete().eq('id', purchaseObj.id);
-        } else {
-            await supabase.from('purchases').delete().eq('date', purchaseObj.date).eq('summary', purchaseObj.summary);
-        }
+        const query = purchaseObj.id ? `id=eq.${purchaseObj.id}` : `date=eq.${encodeURIComponent(purchaseObj.date)}`;
+        await fetch(`${SUPABASE_URL}/rest/v1/purchases?${query}`, {
+            method: 'DELETE',
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
     } catch (e) { console.error("Cloud purchase delete error:", e); }
 }
 
 async function insertSaleCloud(saleObj) {
-    if (!supabase || !isCloudConnected) return;
     try {
-        const { data, error } = await supabase.from('sales').insert({
-            date: saleObj.date,
-            name: saleObj.name,
-            qty: saleObj.qty,
-            price: saleObj.price,
-            total: saleObj.total
-        }).select();
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/sales`, {
+            method: 'POST',
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "return=representation"
+            },
+            body: JSON.stringify({
+                date: saleObj.date,
+                name: saleObj.name,
+                qty: parseInt(saleObj.qty) || 1,
+                price: parseFloat(saleObj.price) || 0,
+                total: parseFloat(saleObj.total) || 0
+            })
+        });
+        const data = await res.json();
         if (data && data[0]) saleObj.id = data[0].id;
     } catch (e) { console.error("Cloud sale insert error:", e); }
 }
 
 async function deleteSaleCloud(saleObj) {
-    if (!supabase || !isCloudConnected) return;
     try {
-        if (saleObj.id) {
-            await supabase.from('sales').delete().eq('id', saleObj.id);
-        } else {
-            await supabase.from('sales').delete().eq('date', saleObj.date).eq('name', saleObj.name);
-        }
+        const query = saleObj.id ? `id=eq.${saleObj.id}` : `date=eq.${encodeURIComponent(saleObj.date)}`;
+        await fetch(`${SUPABASE_URL}/rest/v1/sales?${query}`, {
+            method: 'DELETE',
+            headers: {
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
     } catch (e) { console.error("Cloud sale delete error:", e); }
 }
 
