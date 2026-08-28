@@ -13,16 +13,77 @@ if (window.supabase) {
     }
 }
 
-// Default Initial Mock Data (Simplified to Varón / Mujer and without color)
+// Default Initial Real Data (66 products from local store)
 const DEFAULT_INVENTORY = [
-    { id: "1", name: "PANTALON BORJA OV CC - FRISA (boy)", category: "Varón", size: "12", stock: 12, price: 26500, cost: 16562 },
-    { id: "2", name: "BUZO BASTIAN OV CC - FRISA (boy)", category: "Varón", size: "10", stock: 8, price: 29500, cost: 18437 },
-    { id: "3", name: "REMERA FIDEL HOLGADA CC (girl)", category: "Mujer", size: "12", stock: 15, price: 23000, cost: 14375 },
-    { id: "4", name: "CALZA MARTITA CCA (girl)", category: "Mujer", size: "10", stock: 10, price: 17800, cost: 11125 },
-    { id: "5", name: "CONJUNTO OSO PURO - PLUSH (boy)", category: "Varón", size: "9-12m", stock: 4, price: 28000, cost: 17500 }
+    {"id":"1786387644182fm7rc","name":"MEDIAS COLD RS MPG X2 - CANA BAJA","category":"Varón","size":"-","stock":3,"price":9738,"cost":5410},
+    {"id":"1786387644182g83bb","name":"MONO DARIO MPG - MORLEY ELASTANO E","category":"Varón","size":"-","stock":1,"price":25552,"cost":15970},
+    {"id":"17863876441829za0k","name":"PANTUMEDIAS DREAMS PS NN X1 - MEDIA CANA","category":"Varón","size":"-","stock":2,"price":11916,"cost":6620},
+    {"id":"1786387644182pkzao","name":"MEDIAS UNIVERSITY EI GIRL X2","category":"Mujer","size":"-","stock":6,"price":8816,"cost":5510},
+    {"id":"1786387644183g9suj","name":"MEDIAS DONA BB GIRL X2","category":"Mujer","size":"-","stock":6,"price":8816,"cost":5510},
+    {"id":"1786387644183zb89v","name":"MEDIAS WORLD BOY","category":"Varón","size":"-","stock":6,"price":7632,"cost":4770},
+    {"id":"17863876441837rivj","name":"MEDIAS DONA NG GIRL X2","category":"Mujer","size":"-","stock":6,"price":8816,"cost":5510},
+    {"id":"1786387644183rpp3m","name":"MEDIAS DONA M2 GIRL X2","category":"Mujer","size":"-","stock":6,"price":8816,"cost":5510},
+    {"id":"1786387644183bninr","name":"MEDIAS MONTANA IR BOY X2","category":"Varón","size":"-","stock":6,"price":8816,"cost":5510},
+    {"id":"1786387644183qx1t0","name":"MEDIAS SPORT M2 BOY X2","category":"Varón","size":"-","stock":6,"price":8816,"cost":5510},
+    {"id":"178638764418391wlk","name":"REMERA TIMO LITTLE B - JERSEY SOFT","category":"Varón","size":"-","stock":1,"price":20432,"cost":12770},
+    {"id":"1786387644183eg877","name":"REMERA OLIVER LITTLE B - JERSEY 24/1","category":"Varón","size":"-","stock":1,"price":20432,"cost":12770},
+    {"id":"1786387644183xdk8n","name":"BUZO BELISARIO BABY B - FRISA EST","category":"Varón","size":"-","stock":1,"price":20656,"cost":12910},
+    {"id":"1786387644183p91qz","name":"PANTALONCITO BELISARIO BABY B - FRISA EST","category":"Varón","size":"-","stock":1,"price":16512,"cost":10320},
+    {"id":"178638764418376ncw","name":"BUZO MOR BABY G - FRISA ELASTANO EST","category":"Varón","size":"-","stock":1,"price":20656,"cost":12910},
+    {"id":"1786387644183g0oop","name":"SAQUITO CIELO PETIT - MATELASSE","category":"Varón","size":"-","stock":1,"price":17872,"cost":11170},
+    {"id":"1786387644183xgazy","name":"MEDIAS SOFT RV PETIT","category":"Varón","size":"-","stock":3,"price":8656,"cost":5410},
+    {"id":"1786387644183pffgd","name":"MEDIAS SOFT KC PETIT","category":"Varón","size":"-","stock":3,"price":8656,"cost":5410},
+    {"id":"1786387644183sf4t5","name":"CALCITA MONITO BABY G - MORLEY ELASTANO","category":"Varón","size":"-","stock":1,"price":11776,"cost":7360},
+    {"id":"17863876441835hkya","name":"BODY MALVI BABY G - MORLEY ELASTANO EST","category":"Varón","size":"-","stock":2,"price":20656,"cost":12910},
+    {"id":"1786387644183gdzqp","name":"BUZO MALVON BABY G - FRISA EST","category":"Varón","size":"-","stock":2,"price":20656,"cost":12910},
+    {"id":"1786387644183vlare","name":"CALCITA MALVI BABY G - MORLEY ELASTANO EST","category":"Varón","size":"-","stock":2,"price":11776,"cost":7360},
+    {"id":"1786387644183w08x7","name":"BODY FILI BABY G - MORLEY BASTON GAMUZADO","category":"Varón","size":"-","stock":2,"price":22992,"cost":14370},
+    {"id":"1786387644183w68e5","name":"BUZO FLOR GIRL - PLUSH","category":"Mujer","size":"-","stock":0,"price":33232,"cost":20770},
+    {"id":"1786387644183nzgqr","name":"BUZO BENICIO MG BOY - FRISA","category":"Varón","size":"-","stock":1,"price":26576,"cost":16610},
+    {"id":"1786387644183d810w","name":"BUZO VITO BOY - FRISA ESTAMPADA","category":"Varón","size":"-","stock":2,"price":28112,"cost":17570},
+    {"id":"1786387644183xpxqx","name":"PANTALON MOR GIRL - FRISA EST","category":"Mujer","size":"-","stock":2,"price":34272,"cost":21420},
+    {"id":"17863876441830vgoq","name":"REMERA TOMAS BOY - INTERLOCK RAYADO","category":"Varón","size":"-","stock":1,"price":25552,"cost":15970},
+    {"id":"1786387644183lv3q2","name":"REMERA HOLGADA TAO BOY - JERSEY 24/1","category":"Varón","size":"-","stock":1,"price":25552,"cost":15970},
+    {"id":"1786387644183dtvl7","name":"BUZO RAFAELA GIRL - FRISA ESTAMPADA","category":"Mujer","size":"-","stock":1,"price":28112,"cost":17570},
+    {"id":"1786387644183tcyub","name":"REMERA TIZIANO BOY - JERSEY SOFT","category":"Varón","size":"-","stock":1,"price":25552,"cost":15970},
+    {"id":"17863876441836yznt","name":"REMERA FLORA GIRL - JERSEY 24/1","category":"Mujer","size":"-","stock":1,"price":23504,"cost":14690},
+    {"id":"1786387644183sivrt","name":"REMERA TERESA GIRL - JERSEY","category":"Mujer","size":"-","stock":1,"price":23504,"cost":14690},
+    {"id":"1786387644183zbbav","name":"BUZO BENICIO KC BOY - FRISA","category":"Varón","size":"-","stock":1,"price":26576,"cost":16610},
+    {"id":"17863876441835jlwq","name":"CALZA RINA GIRL - JERSEY ELASTANO E","category":"Mujer","size":"-","stock":1,"price":20432,"cost":12770},
+    {"id":"17863876441833u4cx","name":"PANTALON MONO GIRL - FRISA EST","category":"Mujer","size":"-","stock":1,"price":34272,"cost":21420},
+    {"id":"1786387644183uogjr","name":"CALZA MELI NG GIRL - MORLEY BRYCE","category":"Mujer","size":"-","stock":1,"price":17696,"cost":11060},
+    {"id":"1786387644183dkriz","name":"MEDIAS UNIVERSITY EI LITTLE G X2","category":"Varón","size":"-","stock":3,"price":8816,"cost":5510},
+    {"id":"1786387644183rpehx","name":"MEDIAS WORLD LITTLE B","category":"Varón","size":"-","stock":3,"price":7632,"cost":4770},
+    {"id":"17863876441835z5uf","name":"MEDIAS DONA BB LITTLE G X2","category":"Varón","size":"-","stock":3,"price":8816,"cost":5510},
+    {"id":"1786387644183hkler","name":"MEDIAS DONA NG LITTLE G X2","category":"Varón","size":"-","stock":3,"price":8816,"cost":5510},
+    {"id":"1786387644183yop12","name":"MEDIAS SPORT M2 LITTLE B X2","category":"Varón","size":"-","stock":3,"price":8816,"cost":5510},
+    {"id":"1786387644183uihjr","name":"MEDIAS DONA M2 LITTLE G X2","category":"Varón","size":"-","stock":3,"price":8816,"cost":5510},
+    {"id":"17863876441830tyxs","name":"MEDIAS CAMO LITTLE B X2","category":"Varón","size":"-","stock":3,"price":8816,"cost":5510},
+    {"id":"17863876441833r9kn","name":"MEDIAS MONTANA IR LITTLE B X2","category":"Varón","size":"-","stock":3,"price":8816,"cost":5510},
+    {"id":"17863876441831c7y6","name":"BUZO BENICIO IR BOY - FRISA","category":"Varón","size":"-","stock":3,"price":26576,"cost":16610},
+    {"id":"178638764418351z0z","name":"POLLERA OLIVIA GIRL - VIYELA","category":"Mujer","size":"-","stock":2,"price":27088,"cost":16930},
+    {"id":"1786387644183kd0n1","name":"VESTIDO KIKI GIRL - LANILLA","category":"Mujer","size":"-","stock":2,"price":33232,"cost":20770},
+    {"id":"17863876441839p0jg","name":"BUZO NACHI BOY - FRISA","category":"Varón","size":"-","stock":2,"price":28112,"cost":17570},
+    {"id":"1786387644183lg3ld","name":"REMERA TITO BOY - JERSEY SOFT","category":"Varón","size":"-","stock":2,"price":23504,"cost":14690},
+    {"id":"1786387644183m8rt2","name":"REMERA RAMA BOY - JERSEY 24/1","category":"Varón","size":"-","stock":2,"price":23504,"cost":14690},
+    {"id":"1786387644183nwrl6","name":"REMERA MARTIN BOY - JERSEY 24/1","category":"Varón","size":"-","stock":2,"price":23504,"cost":14690},
+    {"id":"1786387644183vfs9q","name":"PANTALON JOEY BOY","category":"Varón","size":"-","stock":2,"price":53216,"cost":33260},
+    {"id":"17863876441831m6r5","name":"REMERA VICTOR BOY - JERSEY 24/1","category":"Varón","size":"-","stock":1,"price":23504,"cost":14690},
+    {"id":"1786387644183a6dd8","name":"REMERA VICENTE BOY - INTERLOCK RAYADO","category":"Varón","size":"-","stock":1,"price":25552,"cost":15970},
+    {"id":"1786387644183t5io7","name":"CALZA FILI GIRL - MORLEY BASTON ANCHO","category":"Mujer","size":"-","stock":2,"price":20432,"cost":12770},
+    {"id":"1786387644183vlz1t","name":"VESTIDO FILI GIRL - MORLEY BASTON ANCHO","category":"Mujer","size":"-","stock":1,"price":33232,"cost":20770},
+    {"id":"1786387644183snn2j","name":"POLERA FILI GIRL - MORLEY BASTON ANCHO","category":"Mujer","size":"-","stock":2,"price":25552,"cost":15970},
+    {"id":"1786387644183tifwy","name":"REMERA MARTIN LITTLE B - JERSEY 24/1","category":"Varón","size":"-","stock":1,"price":20432,"cost":12770},
+    {"id":"1786387644183msiji","name":"REMERA VICENTE LITTLE B - INTERLOCK","category":"Varón","size":"-","stock":1,"price":22992,"cost":14370},
+    {"id":"1786387644183pxsc4","name":"VESTIDO FILI LITTLE G - MORLEY BASTON ANCHO","category":"Varón","size":"-","stock":1,"price":32208,"cost":20130},
+    {"id":"1786387644183hoa4g","name":"CALZA FILI LITTLE G - MORLEY BASTON ANCHO","category":"Varón","size":"-","stock":2,"price":17872,"cost":11170},
+    {"id":"1786387644183vgyv6","name":"POLERA FILI LITTLE G - MORLEY BASTON ANCHO","category":"Varón","size":"-","stock":1,"price":22992,"cost":14370},
+    {"id":"1786387644183qf6u3","name":"BUZO SANTI LITTLE B - PIEL","category":"Varón","size":"-","stock":2,"price":30672,"cost":19170},
+    {"id":"1786387644183zomtl","name":"PANTALON BENICIO IR LITTLE B - FRISA","category":"Varón","size":"-","stock":1,"price":23616,"cost":14760},
+    {"id":"1786387644183necfe","name":"BUZO BENICIO IR LITTLE B - FRISA","category":"Varón","size":"-","stock":1,"price":23616,"cost":14760}
 ];
 
-// Mock Remito scanned items (Simplified to Varón / Mujer and without color)
+// Mock Remito scanned items
 const MOCK_SCANNED_ITEMS = [
     { name: "PANTALON BORJA OV CC - FRISA (boy)", category: "Varón", size: "", price: 16610 },
     { name: "BUZO BASTIAN OV CC - FRISA (boy)", category: "Varón", size: "", price: 18460 },
@@ -42,17 +103,17 @@ const MOCK_SCANNED_ITEMS = [
 
 // Default Purchase & Sales History
 const DEFAULT_PURCHASES = [
-    { date: "31/07/2026 10:15", summary: "Remito Scan: Pantalon Borja (boy), Calza Martita (girl)...", qty: 24, total: 259970 }
+    { date: "10/08/2026 15:36", summary: "Remito Escaneado: MEDIAS COLD RS MPG X2 - CANA BAJA, MONO DARIO MPG - MORLEY ELASTANO E, PANTUMEDIAS DREAMS PS NN X1 - MEDIA CANA...", qty: 143, total: 1458070 },
+    { date: "10/08/2026 15:47", summary: "Remito Escaneado: MEDIAS COLD RS MPG X2 - CANA BAJA, MONO DARIO MPG - MORLEY ELASTANO E, PANTUMEDIAS DREAMS PS NN X1 - MEDIA CANA...", qty: 143, total: 1458070 }
 ];
 
 const DEFAULT_SALES = [
-    { date: "31/07/2026 12:30", name: "PANTALON BORJA OV CC - FRISA (boy) - Talle 12", qty: 1, price: 26500, total: 26500 },
-    { date: "31/07/2026 14:15", name: "REMERA FIDEL HOLGADA CC (girl) - Talle 12", qty: 1, price: 23000, total: 23000 }
+    { date: "10/08/2026 15:55", name: "BUZO FLOR GIRL - PLUSH - Talle -", qty: 1, price: 33232, total: 33232 }
 ];
 
-let inventory = [];
-let purchases = [];
-let sales = [];
+let inventory = [...DEFAULT_INVENTORY];
+let purchases = [...DEFAULT_PURCHASES];
+let sales = [...DEFAULT_SALES];
 let currentCategoryFilter = "todos";
 let currentSearchQuery = "";
 
@@ -304,52 +365,53 @@ async function deleteSaleCloud(saleObj) {
 
 // Initialize application
 async function initApp() {
-    // 1. Initial Load from LocalStorage (Instant UI)
+    // 1. Initial Load from LocalStorage or Defaults
     const storedInventory = localStorage.getItem("clothing_store_inventory");
     if (storedInventory) {
         try {
-            inventory = JSON.parse(storedInventory);
-            let migrated = false;
-            inventory.forEach(item => {
-                if (item.category !== "Varón" && item.category !== "Mujer") {
-                    const lower = (item.name || "").toLowerCase();
-                    if (lower.includes("girl") || lower.includes("nena") || lower.includes("mujer") || item.category.includes("Mujer")) {
-                        item.category = "Mujer";
-                    } else {
-                        item.category = "Varón";
-                    }
-                    migrated = true;
-                }
-                if (item.color) {
-                    delete item.color;
-                    migrated = true;
-                }
-            });
-            if (migrated) saveInventory();
+            const parsed = JSON.parse(storedInventory);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                inventory = parsed;
+            } else {
+                inventory = [...DEFAULT_INVENTORY];
+            }
         } catch (e) {
             inventory = [...DEFAULT_INVENTORY];
-            saveInventory();
         }
     } else {
         inventory = [...DEFAULT_INVENTORY];
-        saveInventory();
     }
+    saveInventory();
 
     const storedPurchases = localStorage.getItem("clothing_store_purchases");
     if (storedPurchases) {
-        try { purchases = JSON.parse(storedPurchases); } catch(e) { purchases = [...DEFAULT_PURCHASES]; }
+        try {
+            const parsedP = JSON.parse(storedPurchases);
+            if (Array.isArray(parsedP) && parsedP.length > 0) {
+                purchases = parsedP;
+            } else {
+                purchases = [...DEFAULT_PURCHASES];
+            }
+        } catch(e) { purchases = [...DEFAULT_PURCHASES]; }
     } else {
         purchases = [...DEFAULT_PURCHASES];
-        savePurchases();
     }
+    savePurchases();
 
     const storedSales = localStorage.getItem("clothing_store_sales");
     if (storedSales) {
-        try { sales = JSON.parse(storedSales); } catch(e) { sales = [...DEFAULT_SALES]; }
+        try {
+            const parsedS = JSON.parse(storedSales);
+            if (Array.isArray(parsedS) && parsedS.length > 0) {
+                sales = parsedS;
+            } else {
+                sales = [...DEFAULT_SALES];
+            }
+        } catch(e) { sales = [...DEFAULT_SALES]; }
     } else {
         sales = [...DEFAULT_SALES];
-        saveSales();
     }
+    saveSales();
 
     // Set Current Date in Header
     const dateEl = document.getElementById("header-date");
