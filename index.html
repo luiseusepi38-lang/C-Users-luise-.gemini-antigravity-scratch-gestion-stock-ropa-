@@ -544,12 +544,12 @@
 
 const SUPABASE_URL = "https://qeqvfhgcwzkpqcbbywxd.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ekw7nnSANeRjYazKkFLRlQ_lYZiMCOu";
-let supabase = null;
+var supabaseClient = null;
 let isCloudConnected = false;
 
 if (window.supabase) {
     try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch (e) {
         console.warn("Supabase init error:", e);
     }
@@ -768,8 +768,8 @@ async function loadDataFromSupabase() {
 function setupRealtimeSubscription() {
     try {
         if (window.supabase && typeof window.supabase.createClient === "function") {
-            if (!supabase) supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            supabase.channel('stockmaster-realtime')
+            if (!supabaseClient) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient.channel('stockmaster-realtime')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
                     loadDataFromSupabase();
                 })
