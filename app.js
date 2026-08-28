@@ -261,28 +261,33 @@ async function deleteSaleCloud(saleObj) {
 }
 
 // Initialize application
-document.addEventListener("DOMContentLoaded", async () => {
+async function initApp() {
     // 1. Initial Load from LocalStorage (Instant UI)
     const storedInventory = localStorage.getItem("clothing_store_inventory");
     if (storedInventory) {
-        inventory = JSON.parse(storedInventory);
-        let migrated = false;
-        inventory.forEach(item => {
-            if (item.category !== "Varón" && item.category !== "Mujer") {
-                const lower = (item.name || "").toLowerCase();
-                if (lower.includes("girl") || lower.includes("nena") || lower.includes("mujer") || item.category.includes("Mujer")) {
-                    item.category = "Mujer";
-                } else {
-                    item.category = "Varón";
+        try {
+            inventory = JSON.parse(storedInventory);
+            let migrated = false;
+            inventory.forEach(item => {
+                if (item.category !== "Varón" && item.category !== "Mujer") {
+                    const lower = (item.name || "").toLowerCase();
+                    if (lower.includes("girl") || lower.includes("nena") || lower.includes("mujer") || item.category.includes("Mujer")) {
+                        item.category = "Mujer";
+                    } else {
+                        item.category = "Varón";
+                    }
+                    migrated = true;
                 }
-                migrated = true;
-            }
-            if (item.color) {
-                delete item.color;
-                migrated = true;
-            }
-        });
-        if (migrated) saveInventory();
+                if (item.color) {
+                    delete item.color;
+                    migrated = true;
+                }
+            });
+            if (migrated) saveInventory();
+        } catch (e) {
+            inventory = [...DEFAULT_INVENTORY];
+            saveInventory();
+        }
     } else {
         inventory = [...DEFAULT_INVENTORY];
         saveInventory();
@@ -290,7 +295,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const storedPurchases = localStorage.getItem("clothing_store_purchases");
     if (storedPurchases) {
-        purchases = JSON.parse(storedPurchases);
+        try { purchases = JSON.parse(storedPurchases); } catch(e) { purchases = [...DEFAULT_PURCHASES]; }
     } else {
         purchases = [...DEFAULT_PURCHASES];
         savePurchases();
@@ -298,15 +303,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const storedSales = localStorage.getItem("clothing_store_sales");
     if (storedSales) {
-        sales = JSON.parse(storedSales);
+        try { sales = JSON.parse(storedSales); } catch(e) { sales = [...DEFAULT_SALES]; }
     } else {
         sales = [...DEFAULT_SALES];
         saveSales();
     }
 
     // Set Current Date in Header
-    const dateOptions = { weekday: 'long', day: 'numeric', month: 'long' };
-    document.getElementById("header-date").innerText = new Date().toLocaleDateString('es-AR', dateOptions);
+    const dateEl = document.getElementById("header-date");
+    if (dateEl) {
+        const dateOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+        dateEl.innerText = new Date().toLocaleDateString('es-AR', dateOptions);
+    }
 
     // Initial Local Render
     renderAll();
@@ -315,7 +323,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 2. Connect to Supabase Cloud & Subscribe
     await loadDataFromSupabase();
     setupRealtimeSubscription();
-});
+}
+
+// Auto-run when DOM is ready
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initApp);
+} else {
+    initApp();
+}
 
 // Save functions
 function saveInventory() {
@@ -665,34 +680,53 @@ window.deleteSale = function(idx) {
     }
 }
 
-// Setup Event Listeners
-function setupEvents() {
-    // Navigation Tabs
-    const navItems = document.querySelectorAll(".nav-item");
+// Global Tab Switcher Function (Guaranteed to work via onclick & event listeners)
+window.switchTab = function(tabId) {
+    if (!tabId) return;
+    const navItems = document.querySelectorAll(".nav-menu .nav-item");
     const tabContents = document.querySelectorAll(".tab-content");
     const pageTitle = document.getElementById("page-title");
 
+    navItems.forEach(btn => {
+        if (btn.getAttribute("data-tab") === tabId) {
+            btn.classList.add("active");
+        } else {
+            btn.classList.remove("active");
+        }
+    });
+
+    tabContents.forEach(content => {
+        if (content.id === `tab-${tabId}`) {
+            content.classList.add("active");
+        } else {
+            content.classList.remove("active");
+        }
+    });
+
+    if (pageTitle) {
+        if (tabId === "dashboard") pageTitle.innerText = "Panel General";
+        if (tabId === "inventario") pageTitle.innerText = "Inventario de Ropa & Calzado";
+        if (tabId === "compras") pageTitle.innerText = "Gestión de Compras y Remitos";
+        if (tabId === "ventas") pageTitle.innerText = "Registro y Control de Ventas";
+        if (tabId === "costos") pageTitle.innerText = "Historial y Control de Costos";
+    }
+};
+
+// Setup Event Listeners
+function setupEvents() {
+    // Navigation Tabs listener
+    const navItems = document.querySelectorAll(".nav-menu .nav-item");
     navItems.forEach(item => {
-        item.addEventListener("click", () => {
-            navItems.forEach(btn => btn.classList.remove("active"));
-            tabContents.forEach(content => content.classList.remove("active"));
-
-            item.classList.add("active");
+        item.addEventListener("click", (e) => {
+            e.preventDefault();
             const tabId = item.getAttribute("data-tab");
-            document.getElementById(`tab-${tabId}`).classList.add("active");
-
-            // Change Header Title
-            if (tabId === "dashboard") pageTitle.innerText = "Panel General";
-            if (tabId === "inventario") pageTitle.innerText = "Inventario de Ropa & Calzado";
-            if (tabId === "compras") pageTitle.innerText = "Gestión de Compras y Remitos";
-            if (tabId === "ventas") pageTitle.innerText = "Registro y Control de Ventas";
-            if (tabId === "costos") pageTitle.innerText = "Historial y Control de Costos";
+            if (tabId) window.switchTab(tabId);
         });
     });
 
     // Search input
     const searchInput = document.getElementById("search-input");
-    searchInput.addEventListener("input", (e) => {
+    searchInput?.addEventListener("input", (e) => {
         currentSearchQuery = e.target.value;
         renderInventoryTable();
     });
