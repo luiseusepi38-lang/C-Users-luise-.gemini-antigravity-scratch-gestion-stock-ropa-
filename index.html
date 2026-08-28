@@ -179,9 +179,33 @@
 
             <!-- Compras Tab (Escáner e Historial) -->
             <section id="tab-compras" class="tab-content">
-                <div class="panel scan-instructions">
-                    <h2><i class="fa-solid fa-cart-shopping icon-accent"></i> Gestión de Compras</h2>
-                    <p>Sube la foto del remito o factura de tu proveedor para cargar la mercadería al inventario automáticamente.</p>
+                <div class="panel scan-instructions" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2><i class="fa-solid fa-cart-shopping icon-accent"></i> Gestión de Compras</h2>
+                        <p>Carga mercadería escaneando remitos digitales (PDF) o usando la IA para fotos de remitos en papel.</p>
+                    </div>
+                    <button class="btn btn-secondary" id="btn-config-ai-key" style="border-color: rgba(139, 92, 246, 0.4); color: var(--accent-purple);" title="Configurar clave de Gemini AI">
+                        <i class="fa-solid fa-key"></i> Clave Gemini IA
+                    </button>
+                </div>
+
+                <!-- AI Quick Scan Banner -->
+                <div class="panel" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(6, 182, 212, 0.12)); border: 1px solid rgba(139, 92, 246, 0.3); margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #fff;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; color: #fff;">Escanear con IA (Fotos de Papel / Cámara)</h3>
+                            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">Saca una foto directa con tu celular al remito impreso o sube una imagen.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <input type="file" id="ai-file-input" accept="image/*" capture="environment" style="display: none;">
+                        <button class="btn btn-primary" id="btn-trigger-ai-scan" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); border: none; font-weight: 600;">
+                            <i class="fa-solid fa-camera"></i> Tomar Foto / Escanear con IA
+                        </button>
+                    </div>
                 </div>
 
                 <div class="scan-workspace">
@@ -193,11 +217,11 @@
                                     <input type="file" id="file-input" accept="image/*,application/pdf" style="display: none;">
                                     <div class="dropzone-content" id="dropzone-content-normal">
                                         <div class="dropzone-icon">
-                                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                                            <i class="fa-solid fa-file-pdf"></i>
                                         </div>
-                                        <h3>Arrastra aquí tu remito (Foto o PDF)</h3>
+                                        <h3>Arrastra aquí tu remito en PDF</h3>
                                         <p>o haz clic para explorar tus archivos</p>
-                                        <div class="supported-formats">Formatos soportados: PDF, JPG, PNG</div>
+                                        <div class="supported-formats">Lectura digital instantánea de facturas y remitos PDF</div>
                                     </div>
                                     
                                     <!-- Scan Preview container -->
@@ -433,6 +457,32 @@
                     <button type="submit" class="btn btn-primary" id="btn-modal-save">Guardar</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Gemini AI API Key Modal -->
+    <div class="modal" id="ai-key-modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-purple);"></i> Configurar Clave de Gemini IA</h3>
+                <button class="btn-close" id="ai-key-modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="padding: 1.25rem 0;">
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Para escanear remitos con IA necesitas una clave de <strong>Google Gemini API</strong> (gratuita). Se guardará únicamente en este dispositivo.
+                </p>
+                <div class="form-group">
+                    <label for="input-gemini-api-key">API Key de Gemini</label>
+                    <input type="password" id="input-gemini-api-key" placeholder="Pega tu clave (AIzaSy...)" style="font-family: monospace;">
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                    ¿No tienes una clave? <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--accent-cyan); text-decoration: underline;">Obtén tu clave gratuita en Google AI Studio aquí</a>.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn-ai-key-cancel">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-ai-key-save"><i class="fa-solid fa-floppy-disk"></i> Guardar Clave</button>
+            </div>
         </div>
     </div>
 
