@@ -51,7 +51,8 @@
                     inventario: 'Inventario de Ropa & Calzado',
                     compras: 'Gestión de Compras y Remitos',
                     ventas: 'Registro y Control de Ventas',
-                    costos: 'Historial y Control de Costos'
+                    costos: 'Historial y Control de Costos',
+                    fiados: 'Clientes Fiados & Cuentas Corrientes'
                 };
                 if (titles[tabId]) titleEl.innerText = titles[tabId];
             }
@@ -89,6 +90,9 @@
                 </button>
                 <button class="nav-item" data-tab="costos" onclick="switchTab('costos')">
                     <i class="fa-solid fa-tags"></i> Costos
+                </button>
+                <button class="nav-item" data-tab="fiados" onclick="switchTab('fiados')">
+                    <i class="fa-solid fa-address-book"></i> Clientes Fiados
                 </button>
             </nav>
             <div class="sidebar-footer">
@@ -456,6 +460,112 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Clientes Fiados Tab (Propuesta 3: Libreta Split-Screen) -->
+            <section id="tab-fiados" class="tab-content">
+                <!-- Metrics Grid -->
+                <div class="dashboard-grid" style="margin-bottom: 1.5rem;">
+                    <div class="metric-card card-gradient-2">
+                        <div class="card-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Total Fiado en la Calle</span>
+                            <span class="card-value" id="stat-fiados-total-debt" style="color: var(--color-danger);">$0.00</span>
+                        </div>
+                    </div>
+                    <div class="metric-card card-gradient-1">
+                        <div class="card-icon"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Cobrado este Mes</span>
+                            <span class="card-value" id="stat-fiados-total-paid" style="color: var(--color-success);">$0.00</span>
+                        </div>
+                    </div>
+                    <div class="metric-card card-gradient-3">
+                        <div class="card-icon"><i class="fa-solid fa-users"></i></div>
+                        <div class="card-info">
+                            <span class="card-label">Clientes con Deuda</span>
+                            <span class="card-value" id="stat-fiados-clients-debt">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split Screen Container -->
+                <div class="fiados-split-container">
+                    <!-- Left: Customers List Panel -->
+                    <div class="panel">
+                        <div class="panel-header" style="margin-bottom: 1rem;">
+                            <h3 class="panel-title"><i class="fa-solid fa-users text-purple"></i> Clientes</h3>
+                            <button class="btn btn-primary" onclick="openNewCustomerModal()" style="font-size: 0.82rem; padding: 0.4rem 0.8rem;">
+                                <i class="fa-solid fa-user-plus"></i> Nuevo
+                            </button>
+                        </div>
+
+                        <div class="search-bar-container" style="margin-bottom: 0.75rem;">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="fiados-search-input" placeholder="Buscar cliente..." oninput="renderCustomersList()">
+                        </div>
+
+                        <div class="category-tabs" style="margin-bottom: 1rem; gap: 0.25rem;">
+                            <button class="cat-tab active" data-fiados-filter="deuda" onclick="filterCustomers('deuda', this)">Con Deuda</button>
+                            <button class="cat-tab" data-fiados-filter="saldados" onclick="filterCustomers('saldados', this)">Al Día</button>
+                            <button class="cat-tab" data-fiados-filter="todos" onclick="filterCustomers('todos', this)">Todos</button>
+                        </div>
+
+                        <div class="customer-list" id="customers-list-container">
+                            <!-- Dynamic Customer Cards -->
+                        </div>
+                    </div>
+
+                    <!-- Right: Selected Customer Digital Ledger / Statement -->
+                    <div class="panel" id="customer-ledger-panel">
+                        <div id="customer-ledger-empty" style="text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
+                            <i class="fa-solid fa-address-book" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.4;"></i>
+                            <h4>Selecciona un cliente de la lista</h4>
+                            <p style="font-size: 0.85rem; margin-top: 0.25rem;">Verás su libreta histórica, cada venta fiada y cada entrega de dinero.</p>
+                        </div>
+
+                        <div id="customer-ledger-content" class="hidden">
+                            <!-- Header Info -->
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1.25rem;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                        <h2 id="ledger-customer-name" style="font-size: 1.35rem; font-weight: 700; color: #fff;">-</h2>
+                                        <a id="ledger-whatsapp-btn" href="#" target="_blank" class="btn" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 0.8rem; padding: 0.25rem 0.6rem; border-radius: 6px; text-decoration: none;">
+                                            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                                        </a>
+                                    </div>
+                                    <p id="ledger-customer-details" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">-</p>
+                                </div>
+                                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); padding: 0.6rem 1.25rem; border-radius: 12px; text-align: right;">
+                                    <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: block;">Saldo Pendiente</span>
+                                    <span id="ledger-customer-balance" style="font-size: 1.5rem; font-weight: 800; color: var(--color-danger);">$0.00</span>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem;">
+                                <button class="btn btn-success" onclick="openNewPaymentModal()" style="padding: 0.75rem; font-size: 0.9rem; justify-content: center; font-weight: 600;">
+                                    <i class="fa-solid fa-hand-holding-dollar"></i> Registrar Entrega / Pago
+                                </button>
+                                <button class="btn btn-primary" onclick="openNewCreditSaleModal()" style="padding: 0.75rem; font-size: 0.9rem; justify-content: center; font-weight: 600;">
+                                    <i class="fa-solid fa-cart-plus"></i> + Cargar Venta Fiada
+                                </button>
+                            </div>
+
+                            <!-- Movements Timeline -->
+                            <div class="panel-header" style="margin-bottom: 0.75rem;">
+                                <h4 class="panel-title" style="font-size: 0.95rem;"><i class="fa-solid fa-timeline text-cyan"></i> Historial de Movimientos</h4>
+                                <button class="btn btn-secondary" onclick="sendWhatsAppStatement()" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">
+                                    <i class="fa-solid fa-share-nodes"></i> Enviar Resumen
+                                </button>
+                            </div>
+
+                            <div id="customer-timeline-container" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 420px; overflow-y: auto;">
+                                <!-- Dynamic Timeline Items -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -533,6 +643,135 @@
                 <button type="button" class="btn btn-secondary" id="btn-ai-key-cancel">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="btn-ai-key-save"><i class="fa-solid fa-floppy-disk"></i> Guardar Clave</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal 1: Nuevo Cliente -->
+    <div class="modal" id="new-customer-modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-user-plus text-purple"></i> Nuevo Cliente</h3>
+                <button class="btn-close" onclick="closeModal('new-customer-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="new-customer-form" onsubmit="saveCustomerForm(event)">
+                <div class="form-group">
+                    <label for="cust-name">Nombre y Apellido *</label>
+                    <input type="text" id="cust-name" placeholder="Ej: María Coria" required>
+                </div>
+                <div class="form-group">
+                    <label for="cust-phone">Teléfono / WhatsApp</label>
+                    <input type="text" id="cust-phone" placeholder="Ej: +54 9 387 455-1234">
+                </div>
+                <div class="form-group">
+                    <label for="cust-notes">Notas / Dirección (Opcional)</label>
+                    <input type="text" id="cust-notes" placeholder="Ej: Vecina del barrio, local 4">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('new-customer-modal')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 2: Registrar Entrega / Pago Parcial -->
+    <div class="modal" id="new-payment-modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-hand-holding-dollar text-success"></i> Registrar Entrega / Pago</h3>
+                <button class="btn-close" onclick="closeModal('new-payment-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="new-payment-form" onsubmit="savePaymentForm(event)">
+                <input type="hidden" id="pay-customer-id">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1.25rem;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Abonando a la cuenta de:</div>
+                    <div id="pay-customer-name-display" style="font-size: 1.1rem; font-weight: 700; color: #fff;">-</div>
+                    <div style="font-size: 0.85rem; margin-top: 0.25rem;">
+                        Saldo actual: <strong id="pay-customer-debt-display" class="text-danger">$0.00</strong>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="pay-amount">Monto de la Entrega ($) *</label>
+                    <input type="number" id="pay-amount" min="1" step="0.01" placeholder="Ej: 15000" required style="font-size: 1.2rem; font-weight: bold; color: var(--color-success);">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="pay-method">Método de Pago</label>
+                        <select id="pay-method" required>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Transferencia">Transferencia</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="pay-date">Fecha y Hora</label>
+                        <input type="text" id="pay-date" placeholder="DD/MM/AAAA HH:MM">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="pay-notes">Detalle / Comprobante (Opcional)</label>
+                    <input type="text" id="pay-notes" placeholder="Ej: Entrega en efectivo en el local">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('new-payment-modal')">Cancelar</button>
+                    <button type="submit" class="btn btn-success"><i class="fa-solid fa-check"></i> Registrar Abono</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: Cargar Venta Fiada -->
+    <div class="modal" id="new-credit-sale-modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-cart-plus text-cyan"></i> Cargar Venta Fiada</h3>
+                <button class="btn-close" onclick="closeModal('new-credit-sale-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="new-credit-sale-form" onsubmit="saveCreditSaleForm(event)">
+                <input type="hidden" id="credit-customer-id">
+                <div style="background: var(--bg-surface); border: 1px solid var(--border-color); padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1.25rem;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Cargando fiado a:</div>
+                    <div id="credit-customer-name-display" style="font-size: 1.1rem; font-weight: 700; color: #fff;">-</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="credit-product-select">Prenda del Stock (Descuenta stock automáticamente)</label>
+                    <select id="credit-product-select" onchange="handleCreditProductSelect()">
+                        <option value="">-- Seleccionar Prenda del Inventario (Opcional) --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="credit-description">Descripción de las Prendas *</label>
+                    <input type="text" id="credit-description" placeholder="Ej: 1 Buzo Benicio + 1 Calza Fili" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="credit-qty">Cantidad de Prendas</label>
+                        <input type="number" id="credit-qty" min="1" value="1" required>
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="credit-amount">Monto Total Fiado ($) *</label>
+                        <input type="number" id="credit-amount" min="1" step="0.01" placeholder="0.00" required style="font-size: 1.1rem; font-weight: bold; color: var(--color-danger);">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="credit-date">Fecha y Hora</label>
+                    <input type="text" id="credit-date" placeholder="DD/MM/AAAA HH:MM">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('new-credit-sale-modal')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Cargar a la Cuenta</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -966,6 +1205,8 @@ async function initApp() {
         dateEl.innerText = new Date().toLocaleDateString('es-AR', dateOptions);
     }
 
+    initCustomers();
+
     // 3. CRITICAL: Render All UI components immediately FIRST
     try {
         renderAll();
@@ -1017,6 +1258,7 @@ function renderAll() {
     renderSalesTable();
     populateSaleProductDropdown();
     renderCostosTable();
+    renderFiadosAll();
 }
 
 // Render Dashboard Panels
@@ -2369,6 +2611,463 @@ function showToast(message, type = "info") {
         toast.style.animation = "slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) reverse forwards";
         setTimeout(() => toast.remove(), 300);
     }, 4000);
+}
+
+// ========================================================
+// --- Clientes Fiados & Cuentas Corrientes (Propuesta 3) ---
+// ========================================================
+
+const DEFAULT_CUSTOMERS = [
+    { id: "cust_1", name: "María Coria", phone: "+54 9 387 455-1234", notes: "Vecina local 4", created_at: "01/08/2026 10:00" },
+    { id: "cust_2", name: "Juan Rodriguez", phone: "+54 9 387 512-8899", notes: "Cliente habitual", created_at: "05/08/2026 11:30" },
+    { id: "cust_3", name: "Lucía Gómez", phone: "+54 9 387 401-7722", notes: "Pagos siempre al día", created_at: "10/08/2026 16:00" }
+];
+
+const DEFAULT_CUSTOMER_TRANSACTIONS = [
+    { id: "tx_1", customer_id: "cust_1", date: "05/08/2026 19:40", type: "charge", description: "Buzo Benicio IR + Calza Fili", amount: 85000, method: "Prenda" },
+    { id: "tx_2", customer_id: "cust_1", date: "12/08/2026 11:15", type: "payment", description: "Entrega / Pago Parcial", amount: 20000, method: "Transferencia" },
+    { id: "tx_3", customer_id: "cust_1", date: "18/08/2026 17:30", type: "payment", description: "Entrega / Pago Parcial", amount: 15000, method: "Efectivo" },
+    { id: "tx_4", customer_id: "cust_2", date: "15/08/2026 14:00", type: "charge", description: "Remera Timo + Medias Cold", amount: 45000, method: "Prenda" },
+    { id: "tx_5", customer_id: "cust_2", date: "22/08/2026 18:20", type: "payment", description: "Abono a cuenta", amount: 30000, method: "Efectivo" },
+    { id: "tx_6", customer_id: "cust_3", date: "10/08/2026 12:00", type: "charge", description: "Vestido Kiki + Saquito Cielo", amount: 60000, method: "Prenda" },
+    { id: "tx_7", customer_id: "cust_3", date: "10/08/2026 18:00", type: "payment", description: "Pago total de la cuenta", amount: 60000, method: "Transferencia" }
+];
+
+var customers = [];
+var customerTransactions = [];
+var selectedCustomerId = null;
+var currentFiadosFilter = "deuda";
+
+function initCustomers() {
+    try {
+        const stored = localStorage.getItem("clothing_store_customers");
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            customers = (Array.isArray(parsed) && parsed.length > 0) ? parsed : [...DEFAULT_CUSTOMERS];
+        } else {
+            customers = [...DEFAULT_CUSTOMERS];
+        }
+    } catch(e) {
+        customers = [...DEFAULT_CUSTOMERS];
+    }
+    saveCustomersLocal();
+
+    try {
+        const storedTx = localStorage.getItem("clothing_store_customer_transactions");
+        if (storedTx) {
+            const parsedTx = JSON.parse(storedTx);
+            customerTransactions = (Array.isArray(parsedTx) && parsedTx.length > 0) ? parsedTx : [...DEFAULT_CUSTOMER_TRANSACTIONS];
+        } else {
+            customerTransactions = [...DEFAULT_CUSTOMER_TRANSACTIONS];
+        }
+    } catch(e) {
+        customerTransactions = [...DEFAULT_CUSTOMER_TRANSACTIONS];
+    }
+    saveCustomerTransactionsLocal();
+}
+
+function saveCustomersLocal() {
+    localStorage.setItem("clothing_store_customers", JSON.stringify(customers));
+}
+
+function saveCustomerTransactionsLocal() {
+    localStorage.setItem("clothing_store_customer_transactions", JSON.stringify(customerTransactions));
+}
+
+function getCustomerBalance(customerId) {
+    const txs = customerTransactions.filter(t => t.customer_id === customerId);
+    let debt = 0;
+    txs.forEach(t => {
+        const amt = parseFloat(t.amount) || 0;
+        if (t.type === "charge") debt += amt;
+        else if (t.type === "payment") debt -= amt;
+    });
+    return Math.max(debt, 0);
+}
+
+function renderFiadosAll() {
+    renderFiadosMetrics();
+    renderCustomersList();
+    if (selectedCustomerId) {
+        selectCustomer(selectedCustomerId);
+    }
+}
+
+function renderFiadosMetrics() {
+    let totalDebt = 0;
+    let clientsWithDebt = 0;
+    customers.forEach(c => {
+        const bal = getCustomerBalance(c.id);
+        if (bal > 0) {
+            totalDebt += bal;
+            clientsWithDebt++;
+        }
+    });
+
+    let totalPaidMonth = 0;
+    customerTransactions.forEach(t => {
+        if (t.type === "payment") {
+            totalPaidMonth += (parseFloat(t.amount) || 0);
+        }
+    });
+
+    const elDebt = document.getElementById("stat-fiados-total-debt");
+    if (elDebt) elDebt.innerText = `$${totalDebt.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+    const elPaid = document.getElementById("stat-fiados-total-paid");
+    if (elPaid) elPaid.innerText = `$${totalPaidMonth.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+
+    const elClients = document.getElementById("stat-fiados-clients-debt");
+    if (elClients) elClients.innerText = clientsWithDebt;
+}
+
+function filterCustomers(filterType, btn) {
+    currentFiadosFilter = filterType;
+    const parent = btn ? btn.parentElement : null;
+    if (parent) {
+        parent.querySelectorAll(".cat-tab").forEach(t => t.classList.remove("active"));
+        btn.classList.add("active");
+    }
+    renderCustomersList();
+}
+
+function renderCustomersList() {
+    const container = document.getElementById("customers-list-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const searchInput = document.getElementById("fiados-search-input");
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
+
+    let filtered = customers.filter(c => {
+        const bal = getCustomerBalance(c.id);
+        let matchesFilter = true;
+        if (currentFiadosFilter === "deuda") matchesFilter = bal > 0;
+        if (currentFiadosFilter === "saldados") matchesFilter = bal <= 0;
+
+        const matchesQuery = !query || c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+        return matchesFilter && matchesQuery;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem;">No se encontraron clientes.</div>`;
+        return;
+    }
+
+    filtered.forEach(c => {
+        const bal = getCustomerBalance(c.id);
+        const hasDebt = bal > 0;
+        const isActive = c.id === selectedCustomerId;
+
+        const card = document.createElement("div");
+        card.className = `customer-card ${isActive ? 'active' : ''}`;
+        card.onclick = () => selectCustomer(c.id);
+
+        card.innerHTML = `
+            <div>
+                <h4 style="font-weight: 700; font-size: 0.95rem; color: #fff; margin: 0;">${c.name}</h4>
+                <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 2px;">
+                    <i class="fa-solid fa-phone" style="font-size: 0.7rem;"></i> ${c.phone || 'Sin teléfono'}
+                </span>
+            </div>
+            <div style="text-align: right;">
+                <span class="badge ${hasDebt ? 'badge-danger' : 'badge-success'}" style="font-size: 0.7rem; padding: 0.15rem 0.45rem;">
+                    ${hasDebt ? 'Debe' : 'Al Día'}
+                </span>
+                <div style="font-size: 0.95rem; font-weight: 800; color: ${hasDebt ? 'var(--color-danger)' : 'var(--color-success)'}; margin-top: 2px;">
+                    $${bal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function selectCustomer(id) {
+    selectedCustomerId = id;
+    const customer = customers.find(c => c.id === id);
+    if (!customer) return;
+
+    renderCustomersList();
+
+    const emptyView = document.getElementById("customer-ledger-empty");
+    const contentView = document.getElementById("customer-ledger-content");
+    if (emptyView) emptyView.classList.add("hidden");
+    if (contentView) contentView.classList.remove("hidden");
+
+    const nameEl = document.getElementById("ledger-customer-name");
+    if (nameEl) nameEl.innerText = customer.name;
+
+    const detailsEl = document.getElementById("ledger-customer-details");
+    if (detailsEl) detailsEl.innerText = `Tel: ${customer.phone || 'No registrado'} • Notas: ${customer.notes || 'Ninguna'}`;
+
+    const bal = getCustomerBalance(customer.id);
+    const balEl = document.getElementById("ledger-customer-balance");
+    if (balEl) {
+        balEl.innerText = `$${bal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+        balEl.style.color = bal > 0 ? "var(--color-danger)" : "var(--color-success)";
+    }
+
+    const waBtn = document.getElementById("ledger-whatsapp-btn");
+    if (waBtn) {
+        if (customer.phone) {
+            const cleanPhone = customer.phone.replace(/[^0-9]/g, "");
+            waBtn.href = `https://wa.me/${cleanPhone}`;
+            waBtn.style.display = "inline-flex";
+        } else {
+            waBtn.style.display = "none";
+        }
+    }
+
+    renderCustomerTimeline(customer.id);
+}
+
+function renderCustomerTimeline(customerId) {
+    const container = document.getElementById("customer-timeline-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const txs = customerTransactions.filter(t => t.customer_id === customerId);
+
+    if (txs.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem;">No hay movimientos registrados para este cliente.</div>`;
+        return;
+    }
+
+    txs.forEach(t => {
+        const isPayment = t.type === "payment";
+        const amt = parseFloat(t.amount) || 0;
+
+        const itemDiv = document.createElement("div");
+        itemDiv.className = `timeline-item ${isPayment ? 'payment' : 'charge'}`;
+
+        itemDiv.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: bold; background: ${isPayment ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${isPayment ? 'var(--color-success)' : 'var(--color-danger)'};">
+                    <i class="fa-solid ${isPayment ? 'fa-arrow-down' : 'fa-shirt'}"></i>
+                </div>
+                <div>
+                    <div style="font-weight: 700; font-size: 0.88rem; color: #fff;">
+                        ${t.description || (isPayment ? 'Entrega de Dinero' : 'Venta Fiada')}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        ${t.date || ''} • Método: ${t.method || 'Efectivo'}
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="text-align: right;">
+                    <span style="font-weight: 800; font-size: 0.95rem; color: ${isPayment ? 'var(--color-success)' : 'var(--color-danger)'};">
+                        ${isPayment ? '-' : '+'}$${amt.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </span>
+                </div>
+                <button class="btn-table-action btn-delete" onclick="deleteCustomerTransaction('${t.id}')" title="Eliminar movimiento" style="padding: 0.3rem;">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(itemDiv);
+    });
+}
+
+function openNewCustomerModal() {
+    const form = document.getElementById("new-customer-form");
+    if (form) form.reset();
+    openModal("new-customer-modal");
+}
+
+function saveCustomerForm(e) {
+    e.preventDefault();
+    const name = document.getElementById("cust-name").value.trim();
+    const phone = document.getElementById("cust-phone").value.trim();
+    const notes = document.getElementById("cust-notes").value.trim();
+
+    if (!name) return;
+
+    const newCust = {
+        id: "cust_" + Date.now(),
+        name: name,
+        phone: phone,
+        notes: notes,
+        created_at: getFormattedDate()
+    };
+
+    customers.unshift(newCust);
+    saveCustomersLocal();
+    closeModal("new-customer-modal");
+    renderFiadosAll();
+    selectCustomer(newCust.id);
+    showToast(`Cliente ${name} agregado con éxito`, "success");
+}
+
+function openNewPaymentModal() {
+    if (!selectedCustomerId) return;
+    const customer = customers.find(c => c.id === selectedCustomerId);
+    if (!customer) return;
+
+    const bal = getCustomerBalance(customer.id);
+    document.getElementById("pay-customer-id").value = customer.id;
+    document.getElementById("pay-customer-name-display").innerText = customer.name;
+    document.getElementById("pay-customer-debt-display").innerText = `$${bal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+    document.getElementById("pay-date").value = getFormattedDate();
+    document.getElementById("pay-amount").value = "";
+    document.getElementById("pay-notes").value = "";
+
+    openModal("new-payment-modal");
+}
+
+function savePaymentForm(e) {
+    e.preventDefault();
+    const custId = document.getElementById("pay-customer-id").value;
+    const amount = parseFloat(document.getElementById("pay-amount").value) || 0;
+    const method = document.getElementById("pay-method").value;
+    const date = document.getElementById("pay-date").value || getFormattedDate();
+    const notes = document.getElementById("pay-notes").value.trim();
+
+    if (!custId || amount <= 0) {
+        showToast("Ingresa un monto válido", "danger");
+        return;
+    }
+
+    const tx = {
+        id: "tx_" + Date.now(),
+        customer_id: custId,
+        date: date,
+        type: "payment",
+        description: notes ? `Entrega / Pago (${notes})` : "Entrega / Pago Parcial",
+        amount: amount,
+        method: method
+    };
+
+    customerTransactions.unshift(tx);
+    saveCustomerTransactionsLocal();
+    closeModal("new-payment-modal");
+    renderFiadosAll();
+    showToast(`Se registró el pago de $${amount.toLocaleString('es-AR')}`, "success");
+}
+
+function openNewCreditSaleModal() {
+    if (!selectedCustomerId) return;
+    const customer = customers.find(c => c.id === selectedCustomerId);
+    if (!customer) return;
+
+    document.getElementById("credit-customer-id").value = customer.id;
+    document.getElementById("credit-customer-name-display").innerText = customer.name;
+    document.getElementById("credit-date").value = getFormattedDate();
+    document.getElementById("credit-description").value = "";
+    document.getElementById("credit-amount").value = "";
+    document.getElementById("credit-qty").value = "1";
+
+    const select = document.getElementById("credit-product-select");
+    if (select) {
+        select.innerHTML = `<option value="">-- Seleccionar Prenda del Inventario (Opcional) --</option>`;
+        inventory.forEach(item => {
+            if (item.stock > 0) {
+                const opt = document.createElement("option");
+                opt.value = item.id;
+                opt.innerText = `${item.name} (${item.category} - Talle ${item.size || '-'}) - $${parseFloat(item.price).toLocaleString('es-AR')} [Stock: ${item.stock}]`;
+                select.appendChild(opt);
+            }
+        });
+    }
+
+    openModal("new-credit-sale-modal");
+}
+
+function handleCreditProductSelect() {
+    const select = document.getElementById("credit-product-select");
+    const prodId = select ? select.value : "";
+    if (!prodId) return;
+
+    const item = inventory.find(i => i.id === prodId);
+    if (item) {
+        document.getElementById("credit-description").value = `${item.name} - Talle ${item.size || '-'}`;
+        const qty = parseInt(document.getElementById("credit-qty").value) || 1;
+        document.getElementById("credit-amount").value = (parseFloat(item.price) * qty).toFixed(2);
+    }
+}
+
+function saveCreditSaleForm(e) {
+    e.preventDefault();
+    const custId = document.getElementById("credit-customer-id").value;
+    const desc = document.getElementById("credit-description").value.trim();
+    const qty = parseInt(document.getElementById("credit-qty").value) || 1;
+    const amount = parseFloat(document.getElementById("credit-amount").value) || 0;
+    const date = document.getElementById("credit-date").value || getFormattedDate();
+    const prodId = document.getElementById("credit-product-select").value;
+
+    if (!custId || !desc || amount <= 0) {
+        showToast("Completa los datos requeridos", "danger");
+        return;
+    }
+
+    if (prodId) {
+        const item = inventory.find(i => i.id === prodId);
+        if (item) {
+            item.stock = Math.max(0, parseInt(item.stock) - qty);
+            saveInventory();
+            upsertInventoryCloud(item);
+        }
+    }
+
+    const tx = {
+        id: "tx_" + Date.now(),
+        customer_id: custId,
+        date: date,
+        type: "charge",
+        description: desc,
+        amount: amount,
+        method: "Prenda Fiada"
+    };
+
+    customerTransactions.unshift(tx);
+    saveCustomerTransactionsLocal();
+    closeModal("new-credit-sale-modal");
+    renderFiadosAll();
+    showToast(`Venta fiada de $${amount.toLocaleString('es-AR')} cargada a la cuenta`, "success");
+}
+
+function deleteCustomerTransaction(txId) {
+    if (confirm("¿Estás seguro de que deseas eliminar este movimiento del historial de la cuenta?")) {
+        customerTransactions = customerTransactions.filter(t => t.id !== txId);
+        saveCustomerTransactionsLocal();
+        renderFiadosAll();
+        showToast("Movimiento eliminado", "warning");
+    }
+}
+
+function sendWhatsAppStatement() {
+    if (!selectedCustomerId) return;
+    const customer = customers.find(c => c.id === selectedCustomerId);
+    if (!customer) return;
+
+    const bal = getCustomerBalance(customer.id);
+    const text = encodeURIComponent(
+        `Hola ${customer.name}! 👋 Te comparto el resumen de tu cuenta corriente en StockMaster:\n\n` +
+        `💰 *Saldo pendiente a la fecha:* $${bal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}\n\n` +
+        `¡Muchas gracias por tu compra!`
+    );
+
+    const cleanPhone = customer.phone ? customer.phone.replace(/[^0-9]/g, "") : "";
+    if (cleanPhone) {
+        window.open(`https://wa.me/${cleanPhone}?text=${text}`, "_blank");
+    } else {
+        window.open(`https://wa.me/?text=${text}`, "_blank");
+    }
+}
+
+function openModal(modalId) {
+    const m = document.getElementById(modalId);
+    if (m) m.classList.add("active");
+}
+
+function closeModal(modalId) {
+    if (modalId) {
+        const m = document.getElementById(modalId);
+        if (m) m.classList.remove("active");
+    } else {
+        document.querySelectorAll(".modal").forEach(m => m.classList.remove("active"));
+    }
 }
 
 </script>
