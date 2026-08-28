@@ -366,71 +366,79 @@ async function deleteSaleCloud(saleObj) {
 // Initialize application
 async function initApp() {
     // 1. Initial Load from LocalStorage or Defaults
-    const storedInventory = localStorage.getItem("clothing_store_inventory");
-    if (storedInventory) {
-        try {
+    try {
+        const storedInventory = localStorage.getItem("clothing_store_inventory");
+        if (storedInventory) {
             const parsed = JSON.parse(storedInventory);
             if (Array.isArray(parsed) && parsed.length > 0) {
                 inventory = parsed;
             } else {
                 inventory = [...DEFAULT_INVENTORY];
             }
-        } catch (e) {
+        } else {
             inventory = [...DEFAULT_INVENTORY];
         }
-    } else {
+    } catch (e) {
         inventory = [...DEFAULT_INVENTORY];
     }
     saveInventory();
 
-    const storedPurchases = localStorage.getItem("clothing_store_purchases");
-    if (storedPurchases) {
-        try {
+    try {
+        const storedPurchases = localStorage.getItem("clothing_store_purchases");
+        if (storedPurchases) {
             const parsedP = JSON.parse(storedPurchases);
             if (Array.isArray(parsedP) && parsedP.length > 0) {
                 purchases = parsedP;
             } else {
                 purchases = [...DEFAULT_PURCHASES];
             }
-        } catch(e) { purchases = [...DEFAULT_PURCHASES]; }
-    } else {
+        } else {
+            purchases = [...DEFAULT_PURCHASES];
+        }
+    } catch(e) {
         purchases = [...DEFAULT_PURCHASES];
     }
     savePurchases();
 
-    const storedSales = localStorage.getItem("clothing_store_sales");
-    if (storedSales) {
-        try {
+    try {
+        const storedSales = localStorage.getItem("clothing_store_sales");
+        if (storedSales) {
             const parsedS = JSON.parse(storedSales);
             if (Array.isArray(parsedS) && parsedS.length > 0) {
                 sales = parsedS;
             } else {
                 sales = [...DEFAULT_SALES];
             }
-        } catch(e) { sales = [...DEFAULT_SALES]; }
-    } else {
+        } else {
+            sales = [...DEFAULT_SALES];
+        }
+    } catch(e) {
         sales = [...DEFAULT_SALES];
     }
     saveSales();
 
-    // Set Current Date in Header
+    // 2. Set Current Date in Header
     const dateEl = document.getElementById("header-date");
     if (dateEl) {
         const dateOptions = { weekday: 'long', day: 'numeric', month: 'long' };
         dateEl.innerText = new Date().toLocaleDateString('es-AR', dateOptions);
     }
 
-    // 1. Setup All Event Listeners immediately
-    setupEvents();
-
-    // 2. Initial Local Render with error protection
+    // 3. CRITICAL: Render All UI components immediately FIRST
     try {
         renderAll();
     } catch (err) {
-        console.error("Local initial render error:", err);
+        console.error("Critical renderAll error:", err);
     }
 
-    // 3. Connect to Supabase Cloud & Subscribe
+    // 4. Setup Event Listeners safely
+    try {
+        setupEvents();
+    } catch (err) {
+        console.error("setupEvents error:", err);
+    }
+
+    // 5. Connect to Supabase Cloud & Subscribe
     try {
         await loadDataFromSupabase();
         setupRealtimeSubscription();
@@ -923,7 +931,7 @@ function setupEvents() {
     // Navigation Tabs listener
     const navItems = document.querySelectorAll(".nav-menu .nav-item");
     navItems.forEach(item => {
-        item.addEventListener("click", (e) => {
+        item?.addEventListener("click", (e) => {
             e.preventDefault();
             const tabId = item.getAttribute("data-tab");
             if (tabId) window.switchTab(tabId);
@@ -940,7 +948,7 @@ function setupEvents() {
     // Category Tabs in inventory
     const catTabs = document.querySelectorAll(".cat-tab");
     catTabs.forEach(tab => {
-        tab.addEventListener("click", () => {
+        tab?.addEventListener("click", () => {
             catTabs.forEach(t => t.classList.remove("active"));
             tab.classList.add("active");
             currentCategoryFilter = tab.getAttribute("data-cat");
@@ -952,45 +960,44 @@ function setupEvents() {
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("file-input");
 
-    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone?.addEventListener("click", () => fileInput?.click());
     
-    dropzone.addEventListener("dragover", (e) => {
+    dropzone?.addEventListener("dragover", (e) => {
         e.preventDefault();
         dropzone.classList.add("dragover");
     });
 
-    dropzone.addEventListener("dragleave", () => {
+    dropzone?.addEventListener("dragleave", () => {
         dropzone.classList.remove("dragover");
     });
 
-    dropzone.addEventListener("drop", (e) => {
+    dropzone?.addEventListener("drop", (e) => {
         e.preventDefault();
         dropzone.classList.remove("dragover");
-        if (e.dataTransfer.files.length > 0) {
+        if (e.dataTransfer?.files?.length > 0) {
             handleUploadedFile(e.dataTransfer.files[0]);
         }
     });
 
-    fileInput.addEventListener("change", (e) => {
-        if (e.target.files.length > 0) {
+    fileInput?.addEventListener("change", (e) => {
+        if (e.target?.files?.length > 0) {
             handleUploadedFile(e.target.files[0]);
         }
     });
 
     // Modal Events
-    const modal = document.getElementById("product-modal");
     const modalClose = document.getElementById("modal-close");
     const btnModalCancel = document.getElementById("btn-modal-cancel");
     const productForm = document.getElementById("product-form");
 
-    document.getElementById("btn-quick-add").addEventListener("click", () => {
+    document.getElementById("btn-quick-add")?.addEventListener("click", () => {
         openAddModal();
     });
 
-    modalClose.addEventListener("click", () => closeModal());
-    btnModalCancel.addEventListener("click", () => closeModal());
+    modalClose?.addEventListener("click", () => closeModal());
+    btnModalCancel?.addEventListener("click", () => closeModal());
 
-    productForm.addEventListener("submit", (e) => {
+    productForm?.addEventListener("submit", (e) => {
         e.preventDefault();
         saveProductForm();
     });
@@ -1001,36 +1008,36 @@ function setupEvents() {
     const salePriceInput = document.getElementById("sale-price");
     const saleStockAvail = document.getElementById("sale-stock-avail");
 
-    saleProductSelect.addEventListener("change", () => {
+    saleProductSelect?.addEventListener("change", () => {
         const prodId = saleProductSelect.value;
         if (prodId) {
             const item = inventory.find(i => i.id === prodId);
             if (item) {
-                saleStockAvail.innerText = `Stock disponible: ${item.stock} unidades`;
-                saleQuantityInput.max = item.stock;
-                salePriceInput.value = item.price;
+                if (saleStockAvail) saleStockAvail.innerText = `Stock disponible: ${item.stock} unidades`;
+                if (saleQuantityInput) saleQuantityInput.max = item.stock;
+                if (salePriceInput) salePriceInput.value = item.price;
             }
         } else {
-            saleStockAvail.innerText = "Stock disponible: -";
-            salePriceInput.value = "";
+            if (saleStockAvail) saleStockAvail.innerText = "Stock disponible: -";
+            if (salePriceInput) salePriceInput.value = "";
         }
     });
 
-    document.getElementById("sale-form").addEventListener("submit", (e) => {
+    document.getElementById("sale-form")?.addEventListener("submit", (e) => {
         e.preventDefault();
         registerSale();
     });
 
     // Scan Results confirmations
-    document.getElementById("btn-add-item-row").addEventListener("click", () => {
+    document.getElementById("btn-add-item-row")?.addEventListener("click", () => {
         addResultsRow({ name: "", category: "Varón", size: "", price: 0 });
     });
 
-    document.getElementById("btn-confirm-import").addEventListener("click", () => {
+    document.getElementById("btn-confirm-import")?.addEventListener("click", () => {
         confirmImportResults();
     });
 
-    document.getElementById("btn-clear-inventory").addEventListener("click", () => {
+    document.getElementById("btn-clear-inventory")?.addEventListener("click", () => {
         if (confirm("¿Estás completamente seguro de que deseas borrar TODO el inventario del stock? Esta acción no se puede deshacer.")) {
             inventory = [];
             saveInventory();
@@ -1049,19 +1056,19 @@ function setupEvents() {
     });
 
     document.getElementById("ai-key-modal-close")?.addEventListener("click", () => {
-        aiKeyModal.classList.remove("active");
+        aiKeyModal?.classList.remove("active");
     });
 
     document.getElementById("btn-ai-key-cancel")?.addEventListener("click", () => {
-        aiKeyModal.classList.remove("active");
+        aiKeyModal?.classList.remove("active");
     });
 
     document.getElementById("btn-ai-key-save")?.addEventListener("click", () => {
-        const keyVal = inputGeminiKey.value.trim();
+        const keyVal = inputGeminiKey ? inputGeminiKey.value.trim() : "";
         if (keyVal) {
             localStorage.setItem("stockmaster_gemini_api_key", keyVal);
             showToast("Clave de Gemini guardada correctamente", "success");
-            aiKeyModal.classList.remove("active");
+            aiKeyModal?.classList.remove("active");
         } else {
             showToast("Por favor ingresa una clave válida", "warning");
         }
@@ -1074,12 +1081,12 @@ function setupEvents() {
             openAiKeyModal();
             showToast("Primero ingresa tu API Key de Gemini", "info");
         } else {
-            aiFileInput.click();
+            aiFileInput?.click();
         }
     });
 
     aiFileInput?.addEventListener("change", (e) => {
-        if (e.target.files.length > 0) {
+        if (e.target?.files?.length > 0) {
             handleAIFileSelected(e.target.files[0]);
         }
     });
