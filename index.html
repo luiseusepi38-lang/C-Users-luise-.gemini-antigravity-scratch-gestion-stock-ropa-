@@ -108,6 +108,13 @@
                         <i class="fa-solid fa-cloud" id="cloud-sync-icon"></i>
                         <span id="cloud-sync-text">Supabase Conectado</span>
                     </div>
+                    <button class="btn btn-secondary" onclick="exportDataBackup()" title="Descargar copia de seguridad en archivo .json">
+                        <i class="fa-solid fa-file-export"></i> Respaldar
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('backup-file-input').click()" title="Subir archivo .json a la nube">
+                        <i class="fa-solid fa-file-import"></i> Restaurar
+                    </button>
+                    <input type="file" id="backup-file-input" accept=".json" style="display: none;" onchange="handleBackupFile(event)">
                     <button class="btn btn-secondary" id="btn-quick-add">
                         <i class="fa-solid fa-plus"></i> Carga Rápida
                     </button>
