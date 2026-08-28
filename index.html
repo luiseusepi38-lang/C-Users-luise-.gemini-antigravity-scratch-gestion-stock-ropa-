@@ -18,6 +18,47 @@
     <script>
         // Set workerSrc for PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // Direct Global Tab Switcher
+        function switchTab(tabId) {
+            if (!tabId) return;
+            var navButtons = document.querySelectorAll('.nav-menu .nav-item');
+            navButtons.forEach(function(btn) {
+                if (btn.getAttribute('data-tab') === tabId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            var tabSections = document.querySelectorAll('.tab-content');
+            tabSections.forEach(function(sec) {
+                if (sec.id === 'tab-' + tabId) {
+                    sec.style.setProperty('display', 'block', 'important');
+                    sec.classList.add('active');
+                } else {
+                    sec.style.setProperty('display', 'none', 'important');
+                    sec.classList.remove('active');
+                }
+            });
+
+            var titleEl = document.getElementById('page-title');
+            if (titleEl) {
+                var titles = {
+                    dashboard: 'Panel General',
+                    inventario: 'Inventario de Ropa & Calzado',
+                    compras: 'Gestión de Compras y Remitos',
+                    ventas: 'Registro y Control de Ventas',
+                    costos: 'Historial y Control de Costos'
+                };
+                if (titles[tabId]) titleEl.innerText = titles[tabId];
+            }
+
+            if (window.innerWidth <= 900) {
+                var mainEl = document.querySelector('.main-content');
+                if (mainEl) mainEl.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
     </script>
 </head>
 <body>
