@@ -282,10 +282,10 @@
                         </div>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-primary" onclick="resumeBatchSession()" style="font-size: 0.85rem; padding: 0.45rem 0.9rem;">
-                            <i class="fa-solid fa-play"></i> Continuar Lote Pendiente
+                        <button class="btn btn-primary" onclick="resumePendingScanAction()" style="font-size: 0.85rem; padding: 0.45rem 0.9rem;">
+                            <i class="fa-solid fa-play"></i> Continuar Carga
                         </button>
-                        <button class="btn btn-secondary" onclick="cancelBatchSession()" style="font-size: 0.85rem; padding: 0.45rem 0.75rem;" title="Descartar el resto del remito">
+                        <button class="btn btn-secondary" onclick="cancelPendingScanAction()" style="font-size: 0.85rem; padding: 0.45rem 0.75rem;" title="Descartar este remito">
                             <i class="fa-solid fa-trash-can"></i> Descartar
                         </button>
                     </div>
@@ -2219,12 +2219,82 @@ function countPdfPagesBinary(uint8Array) {
     return 1;
 }
 
+// --- IndexedDB Persistent Storage for AI Scans ---
+const IDB_CONFIG = {
+    name: "StockMaster_ScanDB",
+    version: 1,
+    store: "pending_scans"
+};
+
+let pendingFileBuffer = null;
+
+function openScanDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(IDB_CONFIG.name, IDB_CONFIG.version);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(IDB_CONFIG.store)) {
+                db.createObjectStore(IDB_CONFIG.store, { keyPath: "id" });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function savePendingScanToDB(record) {
+    try {
+        const db = await openScanDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_CONFIG.store, "readwrite");
+            const store = tx.objectStore(IDB_CONFIG.store);
+            store.put({ id: "active_pending_scan", ...record, updatedAt: Date.now() });
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch(e) {
+        console.warn("IndexedDB save notice:", e);
+    }
+}
+
+async function getPendingScanFromDB() {
+    try {
+        const db = await openScanDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_CONFIG.store, "readonly");
+            const store = tx.objectStore(IDB_CONFIG.store);
+            const req = store.get("active_pending_scan");
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+        });
+    } catch(e) {
+        console.warn("IndexedDB get notice:", e);
+        return null;
+    }
+}
+
+async function clearPendingScanFromDB() {
+    try {
+        const db = await openScanDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_CONFIG.store, "readwrite");
+            const store = tx.objectStore(IDB_CONFIG.store);
+            store.delete("active_pending_scan");
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch(e) {
+        console.warn("IndexedDB clear notice:", e);
+    }
+}
+
 // Detect PDF page count and open configuration modal
 function detectPDFPagesAndOpenConfig(file) {
     pendingFileToProcess = file;
     const reader = new FileReader();
-    reader.onload = function() {
+    reader.onload = async function() {
         const typedarray = new Uint8Array(this.result);
+        pendingFileBuffer = this.result;
         
         // 1. Immediately count pages using native binary parser
         pendingPdfTotalPages = countPdfPagesBinary(typedarray);
@@ -2241,7 +2311,17 @@ function detectPDFPagesAndOpenConfig(file) {
             } catch(e) {}
         }
 
-        // 3. Open Configuration Modal immediately with real page count
+        // 3. Save to IndexedDB immediately so file survives reloads
+        await savePendingScanToDB({
+            fileName: file.name,
+            fileType: file.type,
+            arrayBuffer: this.result,
+            totalPages: pendingPdfTotalPages,
+            batchSession: null
+        });
+        updateBatchResumeBanner();
+
+        // 4. Open Configuration Modal immediately with real page count
         document.getElementById("batch-modal-filename").innerText = file.name;
         document.getElementById("batch-modal-pagecount").innerText = `${pendingPdfTotalPages} páginas`;
         document.getElementById("opt-desc-all").innerText = `Desde la pág. 1 hasta la pág. ${pendingPdfTotalPages}`;
@@ -2335,7 +2415,7 @@ function updateBatchConfigSummary() {
 }
 
 // Start Batch Processing after confirming configuration
-function confirmBatchConfigAndStart() {
+async function confirmBatchConfigAndStart() {
     const pages = getSelectedPagesFromConfig();
     if (pages.length === 0) {
         showToast("Selecciona al menos una página válida", "warning");
@@ -2366,76 +2446,94 @@ function confirmBatchConfigAndStart() {
         createdDate: getFormattedDate()
     };
 
-    saveBatchSessionLocal();
+    await savePendingScanToDB({
+        fileName: currentBatchSession.fileName,
+        fileType: pendingFileToProcess ? pendingFileToProcess.type : "application/pdf",
+        arrayBuffer: pendingFileBuffer,
+        totalPages: pendingPdfTotalPages,
+        batchSession: currentBatchSession
+    });
+
     updateBatchResumeBanner();
     processBatch(0);
 }
 
-function startDirectPDFScan(file, pages) {
-    currentBatchSession = {
-        id: "batch_" + Date.now(),
-        fileName: file.name,
-        totalBatches: 1,
-        currentBatchIndex: 0,
-        batches: [{ batchIndex: 1, pages: pages, status: "pending" }],
-        confirmedItemsCount: 0,
-        confirmedTotalCost: 0,
-        createdDate: getFormattedDate()
-    };
-    saveBatchSessionLocal();
-    processBatch(0);
-}
-
-function saveBatchSessionLocal() {
-    if (currentBatchSession) {
-        localStorage.setItem("stockmaster_active_batch_queue", JSON.stringify(currentBatchSession));
-    } else {
-        localStorage.removeItem("stockmaster_active_batch_queue");
-    }
-    updateBatchResumeBanner();
-}
-
-function updateBatchResumeBanner() {
+async function updateBatchResumeBanner() {
     const banner = document.getElementById("batch-resume-banner");
     if (!banner) return;
 
     try {
-        const stored = localStorage.getItem("stockmaster_active_batch_queue");
-        if (stored) {
-            const session = JSON.parse(stored);
-            if (session && session.currentBatchIndex < session.totalBatches) {
-                document.getElementById("resume-banner-title").innerText = `📌 Remito en pausa: ${session.fileName}`;
-                document.getElementById("resume-banner-subtitle").innerText = `Progreso: Lote ${session.currentBatchIndex + 1} de ${session.totalBatches} pendiente de confirmar`;
-                banner.classList.remove("hidden");
-                return;
+        const record = await getPendingScanFromDB();
+        if (record && record.arrayBuffer) {
+            document.getElementById("resume-banner-title").innerText = `📌 Remito pendiente: ${record.fileName}`;
+            if (record.batchSession && record.batchSession.totalBatches) {
+                document.getElementById("resume-banner-subtitle").innerText = `Progreso: Lote ${record.batchSession.currentBatchIndex + 1} de ${record.batchSession.totalBatches} pendiente de confirmar`;
+            } else {
+                document.getElementById("resume-banner-subtitle").innerText = `${record.totalPages || 1} páginas pendientes de configuración`;
             }
+            banner.classList.remove("hidden");
+            return;
         }
     } catch(e) {}
     banner.classList.add("hidden");
 }
 
-function resumeBatchSession() {
+async function resumePendingScanAction() {
     try {
-        const stored = localStorage.getItem("stockmaster_active_batch_queue");
-        if (stored) {
-            currentBatchSession = JSON.parse(stored);
-            if (currentBatchSession) {
-                processBatch(currentBatchSession.currentBatchIndex);
-                showToast(`Reanudando ${currentBatchSession.fileName} (Lote ${currentBatchSession.currentBatchIndex + 1})`, "info");
+        const record = await getPendingScanFromDB();
+        if (!record || !record.arrayBuffer) {
+            showToast("No se encontró ningún remito pendiente", "warning");
+            updateBatchResumeBanner();
+            return;
+        }
+
+        const typedarray = new Uint8Array(record.arrayBuffer);
+        pendingFileBuffer = record.arrayBuffer;
+        pendingFileToProcess = { name: record.fileName, type: record.fileType };
+        pendingPdfTotalPages = record.totalPages || countPdfPagesBinary(typedarray);
+
+        // Pre-load PDF.js
+        if (typeof pdfjsLib !== "undefined") {
+            try {
+                currentLoadedPdfDoc = await pdfjsLib.getDocument({ data: typedarray }).promise;
+            } catch(e) {
+                console.warn("PDF.js reload notice:", e);
             }
         }
-    } catch(e) {
-        console.error("Resume error:", e);
+
+        if (record.batchSession && record.batchSession.batches) {
+            // Resume mid-batch scan
+            currentBatchSession = record.batchSession;
+            showToast(`Reanudando ${record.fileName} (Lote ${currentBatchSession.currentBatchIndex + 1})`, "info");
+            processBatch(currentBatchSession.currentBatchIndex);
+        } else {
+            // Open configuration modal
+            document.getElementById("batch-modal-filename").innerText = record.fileName;
+            document.getElementById("batch-modal-pagecount").innerText = `${pendingPdfTotalPages} páginas`;
+            document.getElementById("opt-desc-all").innerText = `Desde la pág. 1 hasta la pág. ${pendingPdfTotalPages}`;
+            
+            document.getElementById("batch-range-from").max = pendingPdfTotalPages;
+            document.getElementById("batch-range-to").max = pendingPdfTotalPages;
+            document.getElementById("batch-range-to").value = pendingPdfTotalPages;
+            
+            handleRangeModeChange("all");
+            openModal("pdf-batch-config-modal");
+        }
+    } catch(err) {
+        console.error("Error resuming pending scan:", err);
+        showToast("Error al reanudar la carga", "danger");
     }
 }
 
-function cancelBatchSession() {
-    if (confirm("¿Deseas descartar los lotes restantes de este remito? Los productos ya confirmados quedarán guardados en tu stock.")) {
+async function cancelPendingScanAction() {
+    if (confirm("¿Deseas descartar este remito pendiente? Los productos ya confirmados previamente permanecerán en tu stock.")) {
         currentBatchSession = null;
-        localStorage.removeItem("stockmaster_active_batch_queue");
+        pendingFileToProcess = null;
+        pendingFileBuffer = null;
+        await clearPendingScanFromDB();
         updateBatchResumeBanner();
         resetScanState();
-        showToast("Lotes restantes cancelados", "warning");
+        showToast("Remito descartado", "warning");
     }
 }
 
@@ -3026,20 +3124,24 @@ function confirmImportResults() {
         currentBatchSession.confirmedTotalCost += purchaseTotalCost;
         const nextBatchIdx = currentBatchSession.currentBatchIndex + 1;
         currentBatchSession.currentBatchIndex = nextBatchIdx;
-        saveBatchSessionLocal();
+        
+        savePendingScanToDB({
+            fileName: currentBatchSession.fileName,
+            fileType: pendingFileToProcess ? pendingFileToProcess.type : "application/pdf",
+            arrayBuffer: pendingFileBuffer,
+            totalPages: pendingPdfTotalPages,
+            batchSession: currentBatchSession
+        });
+        updateBatchResumeBanner();
 
         showToast(`Lote ${nextBatchIdx} de ${currentBatchSession.totalBatches} ingresado. Iniciando Lote ${nextBatchIdx + 1}...`, "success");
         processBatch(nextBatchIdx);
     } else {
-        // Final batch or single scan completed
-        if (currentBatchSession && pendingFileToProcess) {
-            calculateFileSHA256(pendingFileToProcess).then(hash => {
-                if (hash) saveFileHashRecord(hash, pendingFileToProcess.name, purchaseObj.summary, purchaseTotalCost);
-            });
-        }
-
         currentBatchSession = null;
-        saveBatchSessionLocal();
+        pendingFileToProcess = null;
+        pendingFileBuffer = null;
+        clearPendingScanFromDB();
+        updateBatchResumeBanner();
         resetScanState();
 
         showToast(`¡Remito completado! Se cargaron ${addedCount} unidades al inventario`, "success");
