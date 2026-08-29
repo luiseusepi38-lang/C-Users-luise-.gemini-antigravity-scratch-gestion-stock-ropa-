@@ -263,7 +263,7 @@
                         </div>
                     </div>
                     <div>
-                        <input type="file" id="ai-file-input" accept="image/*" capture="environment" style="display: none;">
+                        <input type="file" id="ai-file-input" accept="image/*,application/pdf" style="display: none;">
                         <button class="btn btn-primary" id="btn-trigger-ai-scan" style="background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan)); border: none; font-weight: 600;">
                             <i class="fa-solid fa-camera"></i> Tomar Foto / Escanear con IA
                         </button>
@@ -1810,7 +1810,10 @@ function setupEvents() {
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("file-input");
 
-    dropzone?.addEventListener("click", () => fileInput?.click());
+    dropzone?.addEventListener("click", () => {
+        if (fileInput) fileInput.value = null;
+        fileInput?.click();
+    });
     
     dropzone?.addEventListener("dragover", (e) => {
         e.preventDefault();
@@ -1926,6 +1929,7 @@ function setupEvents() {
 
     const aiFileInput = document.getElementById("ai-file-input");
     document.getElementById("btn-trigger-ai-scan")?.addEventListener("click", () => {
+        if (aiFileInput) aiFileInput.value = null;
         aiFileInput?.click();
     });
 
