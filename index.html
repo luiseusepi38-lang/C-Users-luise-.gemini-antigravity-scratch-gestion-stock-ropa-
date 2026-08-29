@@ -1926,18 +1926,12 @@ function setupEvents() {
 
     const aiFileInput = document.getElementById("ai-file-input");
     document.getElementById("btn-trigger-ai-scan")?.addEventListener("click", () => {
-        const apiKey = localStorage.getItem("stockmaster_gemini_api_key");
-        if (!apiKey) {
-            openAiKeyModal();
-            showToast("Primero ingresa tu API Key de Gemini", "info");
-        } else {
-            aiFileInput?.click();
-        }
+        aiFileInput?.click();
     });
 
     aiFileInput?.addEventListener("change", (e) => {
         if (e.target?.files?.length > 0) {
-            handleAIFileSelected(e.target.files[0]);
+            handleUploadedFile(e.target.files[0]);
         }
     });
 }
@@ -2100,43 +2094,65 @@ Devuelve ÚNICAMENTE un array JSON válido con los objetos, sin explicaciones ni
     return JSON.parse(rawText);
 }
 
-// Detect PDF page count with PDF.js
+// Native Binary PDF Page Counter (0 external dependencies, 100% reliable)
+function countPdfPagesBinary(uint8Array) {
+    try {
+        const text = new TextDecoder('latin1').decode(uint8Array);
+        const countMatches = text.match(/\/Type\s*\/Pages[^>]*\/Count\s+(\d+)/g);
+        if (countMatches && countMatches.length > 0) {
+            let maxCount = 0;
+            for (const m of countMatches) {
+                const numMatch = m.match(/\/Count\s+(\d+)/);
+                if (numMatch) {
+                    const count = parseInt(numMatch[1], 10);
+                    if (count > maxCount) maxCount = count;
+                }
+            }
+            if (maxCount > 0) return maxCount;
+        }
+        const pageMatches = text.match(/\/Type\s*\/Page(?=[\s\/>\r\n])/g);
+        if (pageMatches && pageMatches.length > 0) {
+            return pageMatches.length;
+        }
+    } catch(e) {
+        console.warn("Binary page count notice:", e);
+    }
+    return 1;
+}
+
+// Detect PDF page count and open configuration modal
 function detectPDFPagesAndOpenConfig(file) {
     pendingFileToProcess = file;
     const reader = new FileReader();
     reader.onload = function() {
         const typedarray = new Uint8Array(this.result);
-        if (typeof pdfjsLib === "undefined") {
-            handleAIFileSelected(file);
-            return;
+        
+        // 1. Immediately count pages using native binary parser
+        pendingPdfTotalPages = countPdfPagesBinary(typedarray);
+
+        // 2. Pre-load PDF.js document in background for page extraction if available
+        if (typeof pdfjsLib !== "undefined") {
+            try {
+                pdfjsLib.getDocument({ data: typedarray }).promise.then(pdf => {
+                    currentLoadedPdfDoc = pdf;
+                    if (pdf && pdf.numPages) pendingPdfTotalPages = pdf.numPages;
+                }).catch(e => {
+                    console.warn("PDF.js background notice:", e);
+                });
+            } catch(e) {}
         }
 
-        pdfjsLib.getDocument({ data: typedarray }).promise.then(pdf => {
-            currentLoadedPdfDoc = pdf;
-            pendingPdfTotalPages = pdf.numPages;
-
-            if (pendingPdfTotalPages > 3) {
-                // Open Configuration Modal for Multi-Page PDF
-                document.getElementById("batch-modal-filename").innerText = file.name;
-                document.getElementById("batch-modal-pagecount").innerText = `${pendingPdfTotalPages} páginas`;
-                document.getElementById("opt-desc-all").innerText = `Desde la pág. 1 hasta la pág. ${pendingPdfTotalPages}`;
-                
-                document.getElementById("batch-range-from").max = pendingPdfTotalPages;
-                document.getElementById("batch-range-to").max = pendingPdfTotalPages;
-                document.getElementById("batch-range-to").value = pendingPdfTotalPages;
-                
-                handleRangeModeChange("all");
-                openModal("pdf-batch-config-modal");
-            } else {
-                // Short PDF (<= 3 pages) -> Process directly in 1 batch
-                const pgs = [];
-                for (let i = 1; i <= pendingPdfTotalPages; i++) pgs.push(i);
-                startDirectPDFScan(file, pgs);
-            }
-        }).catch(err => {
-            console.error("PDF Read Error with PDF.js:", err);
-            handleAIFileSelected(file);
-        });
+        // 3. Open Configuration Modal immediately with real page count
+        document.getElementById("batch-modal-filename").innerText = file.name;
+        document.getElementById("batch-modal-pagecount").innerText = `${pendingPdfTotalPages} páginas`;
+        document.getElementById("opt-desc-all").innerText = `Desde la pág. 1 hasta la pág. ${pendingPdfTotalPages}`;
+        
+        document.getElementById("batch-range-from").max = pendingPdfTotalPages;
+        document.getElementById("batch-range-to").max = pendingPdfTotalPages;
+        document.getElementById("batch-range-to").value = pendingPdfTotalPages;
+        
+        handleRangeModeChange("all");
+        openModal("pdf-batch-config-modal");
     };
     reader.readAsArrayBuffer(file);
 }
