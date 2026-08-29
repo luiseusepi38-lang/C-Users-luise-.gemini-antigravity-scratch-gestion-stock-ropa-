@@ -1806,7 +1806,7 @@ function setupEvents() {
         });
     });
 
-    // Drag & Drop events (in Compras Tab)
+    // Drag & Drop events (in Compras Tab - Zona de Remitos Tradicional)
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("file-input");
 
@@ -1825,13 +1825,13 @@ function setupEvents() {
         e.preventDefault();
         dropzone.classList.remove("dragover");
         if (e.dataTransfer?.files?.length > 0) {
-            handleUploadedFile(e.dataTransfer.files[0]);
+            handleTraditionalRemito(e.dataTransfer.files[0]);
         }
     });
 
     fileInput?.addEventListener("change", (e) => {
         if (e.target?.files?.length > 0) {
-            handleUploadedFile(e.target.files[0]);
+            handleTraditionalRemito(e.target.files[0]);
         }
     });
 
@@ -1931,7 +1931,7 @@ function setupEvents() {
 
     aiFileInput?.addEventListener("change", (e) => {
         if (e.target?.files?.length > 0) {
-            handleUploadedFile(e.target.files[0]);
+            handleAIScanFile(e.target.files[0]);
         }
     });
 }
@@ -1996,35 +1996,128 @@ let currentLoadedPdfDoc = null;
 let pendingFileToProcess = null;
 let pendingPdfTotalPages = 0;
 
-// Router for dropped or selected files (PDF or Images)
-async function handleUploadedFile(file, forceBypassDuplicate = false) {
+// ========================================================
+// --- Zona de Remitos Tradicional (100% Directo y Local) ---
+// ========================================================
+
+function handleTraditionalRemito(file) {
     if (!file) return;
-
-    // 1. Level 1 Duplicate Detection (SHA-256 Fingerprint)
-    if (!forceBypassDuplicate) {
-        const fileHash = await calculateFileSHA256(file);
-        if (fileHash) {
-            const hashes = getStoredFileHashes();
-            const existing = hashes.find(h => h.hash === fileHash);
-            if (existing) {
-                const dupModal = document.getElementById("duplicate-remito-modal");
-                document.getElementById("dup-modal-filename").innerText = existing.fileName || file.name;
-                document.getElementById("dup-modal-details").innerText = `Cargado previamente el ${existing.date} • Total: $${(existing.total || 0).toLocaleString('es-AR')}`;
-                
-                const btnForce = document.getElementById("btn-duplicate-force-continue");
-                if (btnForce) {
-                    btnForce.onclick = () => {
-                        closeModal("duplicate-remito-modal");
-                        handleUploadedFile(file, true);
-                    };
-                }
-                openModal("duplicate-remito-modal");
-                return;
-            }
-        }
+    const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (isPDF) {
+        parsePDF(file);
+    } else {
+        showToast("Por favor sube un archivo PDF válido en la zona de remitos", "warning");
     }
+}
 
-    // 2. Check if file is PDF
+// Real PDF Text Parser using PDF.js (Original directo e independiente)
+function parsePDF(file) {
+    const dropzoneContentNormal = document.getElementById("dropzone-content-normal");
+    const dropzonePreview = document.getElementById("dropzone-preview");
+    const scannerStatusText = document.getElementById("scanner-status-text");
+    const laserLine = document.getElementById("laser-line");
+
+    if (dropzoneContentNormal) dropzoneContentNormal.classList.add("hidden");
+    if (dropzonePreview) dropzonePreview.classList.remove("hidden");
+    if (laserLine) laserLine.classList.remove("hidden");
+    if (scannerStatusText) scannerStatusText.innerText = "Leyendo remito digital...";
+
+    const reader = new FileReader();
+    reader.onload = function() {
+        const typedarray = new Uint8Array(this.result);
+        
+        pdfjsLib.getDocument({ data: typedarray }).promise.then(pdf => {
+            let maxPages = pdf.numPages;
+            let countPromises = [];
+            
+            for (let j = 1; j <= maxPages; j++) {
+                countPromises.push(
+                    pdf.getPage(j).then(page => {
+                        return page.getTextContent().then(textContent => {
+                            const items = textContent.items;
+                            let textItems = items.map(item => ({
+                                text: item.str,
+                                x: item.transform[4],
+                                y: item.transform[5]
+                            }));
+                            
+                            // Sort by Y coordinate descending (top to bottom), then X ascending (left to right)
+                            textItems.sort((a, b) => {
+                                if (Math.abs(a.y - b.y) > 5) {
+                                    return b.y - a.y;
+                                }
+                                return a.x - b.x;
+                            });
+
+                            // Reconstruct lines based on Y proximity
+                            let lines = [];
+                            let currentLine = [];
+                            let currentY = null;
+
+                            textItems.forEach(item => {
+                                if (currentY === null) {
+                                    currentY = item.y;
+                                    currentLine.push(item);
+                                } else if (Math.abs(item.y - currentY) > 5) {
+                                    lines.push(currentLine);
+                                    currentLine = [item];
+                                    currentY = item.y;
+                                } else {
+                                    currentLine.push(item);
+                                }
+                            });
+                            if (currentLine.length > 0) lines.push(currentLine);
+
+                            // Sort words left-to-right on each line and join
+                            return lines.map(line => {
+                                return line.sort((a, b) => a.x - b.x).map(i => i.text).join(" ");
+                            }).join("\n");
+                        });
+                    })
+                );
+            }
+            
+            Promise.all(countPromises).then(pageTexts => {
+                const fullText = pageTexts.join("\n");
+                const parsedItems = parseInvoiceText(fullText);
+                
+                setTimeout(() => {
+                    if (laserLine) laserLine.classList.add("hidden");
+                    if (scannerStatusText) scannerStatusText.innerText = "¡Remito leído con éxito!";
+                    showToast(`Se detectaron ${parsedItems.length} productos en el remito`, "success");
+                    
+                    const resultsPanel = document.getElementById("results-panel");
+                    const emptyResultsState = document.getElementById("empty-results-state");
+                    const resultsContent = document.getElementById("results-content");
+                    
+                    if (resultsPanel) resultsPanel.classList.remove("locked");
+                    if (emptyResultsState) emptyResultsState.classList.add("hidden");
+                    if (resultsContent) resultsContent.classList.remove("hidden");
+                    
+                    renderParsedResults(parsedItems);
+                }, 800);
+            }).catch(err => {
+                console.error("PDF page parse error:", err);
+                if (laserLine) laserLine.classList.add("hidden");
+                if (scannerStatusText) scannerStatusText.innerText = "Error al leer páginas";
+                showToast("Error al extraer texto del PDF", "danger");
+            });
+        }).catch(err => {
+            console.error("PDF loading error:", err);
+            if (laserLine) laserLine.classList.add("hidden");
+            if (scannerStatusText) scannerStatusText.innerText = "Error al abrir PDF";
+            showToast("No se pudo abrir el archivo PDF", "danger");
+        });
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// ========================================================
+// --- Escáner con IA (Módulo Separado y Complementario) ---
+// ========================================================
+
+function handleAIScanFile(file) {
+    if (!file) return;
     const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     if (isPDF) {
         detectPDFPagesAndOpenConfig(file);
